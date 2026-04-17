@@ -2,23 +2,8 @@ import sys
 import cv2
 import json
 import os
-import platform  # Para detectar o sistema operacional
-
-# Importação condicional para evitar erro no Linux
-if platform.system() == "Windows":
-    try:
-        from pygrabber.dshow_graph import FilterGraph
-
-        HAS_PYGRABBER = True
-    except ImportError:
-        HAS_PYGRABBER = False
-    import keyboard
-
-    HAS_KEYBOARD = True
-else:
-    HAS_PYGRABBER = False
-    HAS_KEYBOARD = False  # keyboard no Linux exige root e mapeamento diferente
-
+import keyboard
+from pygrabber.dshow_graph import FilterGraph
 from PyQt6.QtWidgets import (
     QApplication,
     QLabel,
@@ -48,7 +33,7 @@ def load_all_configs():
         try:
             with open(CONFIG_FILE, "r") as f:
                 return json.load(f)
-        except:
+        except:  # noqa
             return {}
     return {}
 
@@ -75,6 +60,8 @@ class PipCameraWidget(QWidget):
         self.base_width = size_val
         self.cam_index = cam_index
         self.mode = mode
+
+        # Guardamos a posição desejada de forma absoluta
         self.target_pos = QPoint(pos_x, pos_y)
 
         self.setWindowFlags(
@@ -89,14 +76,15 @@ class PipCameraWidget(QWidget):
 
         self.video_label = QLabel(self)
 
+        # Toolbar
         self.controls_container = QWidget(self)
         self.controls_layout = QHBoxLayout(self.controls_container)
         self.controls_layout.setContentsMargins(8, 0, 8, 0)
         self.controls_layout.setSpacing(12)
 
-        self.btn_minus = self.create_button("-")
-        self.btn_close = self.create_button("X", is_close=True)
-        self.btn_plus = self.create_button("+")
+        self.btn_minus = self.create_button("➖")
+        self.btn_close = self.create_button("✕", is_close=True)
+        self.btn_plus = self.create_button("➕")
 
         self.controls_layout.addWidget(self.btn_minus)
         self.controls_layout.addWidget(self.btn_close)
@@ -109,43 +97,45 @@ class PipCameraWidget(QWidget):
         self.controls_container.hide()
         self.update_ui_geometry()
 
-        # Seleção de Backend: DSHOW para Windows, V4L2 para Linux
-        backend = cv2.CAP_DSHOW if platform.system() == "Windows" else cv2.CAP_V4L2
-        self.cap = cv2.VideoCapture(self.cam_index, backend)
-
+        self.cap = cv2.VideoCapture(self.cam_index, cv2.CAP_DSHOW)
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
         self.timer.start(30)
 
-        # Atalhos apenas no Windows (Keyboard no Linux requer privilégios de root)
-        if HAS_KEYBOARD:
-            self.shortcut_manager = ShortcutSignals()
-            self.shortcut_manager.resize_signal.connect(self.resize_widget)
-            self.shortcut_manager.toggle_signal.connect(self.toggle_visibility)
-            try:
-                keyboard.add_hotkey(
-                    "alt+=", lambda: self.shortcut_manager.resize_signal.emit(20)
-                )
-                keyboard.add_hotkey(
-                    "alt+-", lambda: self.shortcut_manager.resize_signal.emit(-20)
-                )
-                keyboard.add_hotkey(
-                    "alt+s", lambda: self.shortcut_manager.toggle_signal.emit()
-                )
-            except:
-                pass
+        self.shortcut_manager = ShortcutSignals()
+        self.shortcut_manager.resize_signal.connect(self.resize_widget)
+        self.shortcut_manager.toggle_signal.connect(self.toggle_visibility)
+
+        try:
+            keyboard.add_hotkey(
+                "alt+=", lambda: self.shortcut_manager.resize_signal.emit(20)
+            )
+            keyboard.add_hotkey(
+                "alt+plus", lambda: self.shortcut_manager.resize_signal.emit(20)
+            )
+            keyboard.add_hotkey(
+                "alt+-", lambda: self.shortcut_manager.resize_signal.emit(-20)
+            )
+            keyboard.add_hotkey(
+                "alt+s", lambda: self.shortcut_manager.toggle_signal.emit()
+            )
+        except Exception as e:
+            print(f"Erro nos atalhos: {e}")
 
     def toggle_visibility(self):
         if self.isVisible():
+            # Antes de esconder, garantimos que a posição atual está salva no target_pos
             self.target_pos = self.pos()
             self.hide()
         else:
+            # Ao mostrar, forçamos o movimento para a posição exata onde estava
             self.show()
             self.move(self.target_pos)
             self.activateWindow()
 
     def showEvent(self, event):
         super().showEvent(event)
+        # Força a posição no nascimento da janela
         self.move(self.target_pos)
         self._initializing = False
 
@@ -154,7 +144,7 @@ class PipCameraWidget(QWidget):
         btn.setFixedSize(32, 32)
         bg = "rgba(220, 50, 50, 200)" if is_close else "rgba(40, 40, 40, 180)"
         btn.setStyleSheet(
-            f"QPushButton {{ background-color: {bg}; color: white; border-radius: 16px; border: 1px solid rgba(255,255,255,60); font-weight: bold; }}"
+            f"QPushButton {{ background-color: {bg}; color: white; border-radius: 16px; border: 1px solid rgba(255,255,255,60); font-weight: bold; }}"  # noqa
         )
         return btn
 
@@ -162,6 +152,7 @@ class PipCameraWidget(QWidget):
         h_ratio = 0.75 if "4:3" in self.mode else 1.0
         self.curr_w = self.base_width
         self.curr_h = int(self.base_width * h_ratio)
+
         self.setFixedSize(self.curr_w, self.curr_h)
         self.video_label.setGeometry(0, 0, self.curr_w, self.curr_h)
 
@@ -184,6 +175,7 @@ class PipCameraWidget(QWidget):
     def store_current_state(self):
         if self.x() <= 0 and self.y() <= 0:
             return
+        # Atualizamos o target_pos toda vez que salvamos para manter a consistência com o Alt+S
         self.target_pos = self.pos()
         save_mode_config(self.mode, self.base_width, self.x(), self.y())
 
@@ -195,11 +187,11 @@ class PipCameraWidget(QWidget):
             if (w_f / h_f) > target_ratio:
                 new_w = int(h_f * target_ratio)
                 offset = (w_f - new_w) // 2
-                frame = frame[:, offset : offset + new_w]
+                frame = frame[:, offset : offset + new_w]  # noqa
             else:
                 new_h = int(w_f / target_ratio)
                 offset = (h_f - new_h) // 2
-                frame = frame[offset : offset + new_h, :]
+                frame = frame[offset : offset + new_h, :]  # noqa
 
             frame = cv2.flip(frame, 1)
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -257,11 +249,10 @@ class PipCameraWidget(QWidget):
             self.close_and_return()
 
     def close_and_return(self):
-        if HAS_KEYBOARD:
-            try:
-                keyboard.remove_all_hotkeys()
-            except:
-                pass
+        try:
+            keyboard.remove_all_hotkeys()
+        except:  # noqa
+            pass
         self.store_current_state()
         self.cap.release()
         self.close()
@@ -308,22 +299,12 @@ class Launcher(QWidget):
         self.size_input.setText(str(mode_cfg.get("size", "300")))
 
     def populate_cameras(self):
-        if HAS_PYGRABBER:
-            try:
-                devices = FilterGraph().get_input_devices()
-                for index, name in enumerate(devices):
-                    self.cam_combo.addItem(name, index)
-            except:
-                self.cam_combo.addItem("Erro ao detectar", -1)
-        else:
-            # Fallback para Linux: Detecção via OpenCV simples
-            for i in range(5):
-                cap = cv2.VideoCapture(i)
-                if cap.isOpened():
-                    self.cam_combo.addItem(f"Dispositivo de Vídeo {i}", i)
-                    cap.release()
-            if self.cam_combo.count() == 0:
-                self.cam_combo.addItem("Nenhuma câmera detectada", -1)
+        try:
+            devices = FilterGraph().get_input_devices()
+            for index, name in enumerate(devices):
+                self.cam_combo.addItem(name, index)
+        except:  # noqa
+            self.cam_combo.addItem("Erro ao detectar", -1)
 
     def start_pip(self):
         cam_idx = self.cam_combo.currentData()
@@ -332,13 +313,16 @@ class Launcher(QWidget):
         mode = self.mode_combo.currentText()
         try:
             size = int(self.size_input.text())
-        except:
+        except:  # noqa
             size = 300
         configs = load_all_configs()
         mode_cfg = configs.get(mode, {})
-        screen = QGuiApplication.primaryScreen().geometry()
+        screen = QGuiApplication.primaryScreen().geometry()  # type: ignore
+
+        # Pega a posição do config ou centraliza
         pos_x = mode_cfg.get("x", (screen.width() - size) // 2)
         pos_y = mode_cfg.get("y", (screen.height() - size) // 2)
+
         self.pip = PipCameraWidget(size, cam_idx, self, mode, pos_x, pos_y)
         self.pip.show()
         self.hide()
