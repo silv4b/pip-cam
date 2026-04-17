@@ -1,0 +1,12 @@
+[project]
+name = "pip-cam"
+version = "0.1.0"
+description = "Um widget de câmera flutuante, leve e customizável desenvolvido em Python e PyQt6."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "keyboard>=0.13.5",
+    "opencv-python>=4.13.0.92",
+    "pygrabber>=0.2",
+    "pyqt6>=6.11.0",
+]
