@@ -50,6 +50,7 @@ class Launcher(QWidget):
         self.preview_cap = None
         self.preview_timer = QTimer()
         self.preview_timer.timeout.connect(self.update_preview)
+        self.active_pips = []
         layout = QVBoxLayout()
         self.form = QFormLayout()
         cam_layout = QHBoxLayout()
@@ -102,7 +103,9 @@ class Launcher(QWidget):
         self.border_mode_combo = QComboBox()
         self.border_mode_combo.addItems(["Cor Sólida", "Sinalizador de Áudio"])
         self.border_mode_combo.currentTextChanged.connect(self.toggle_border_config)
-        self.border_mode_combo.currentTextChanged.connect(self.save_current_launcher_settings)
+        self.border_mode_combo.currentTextChanged.connect(
+            self.save_current_launcher_settings
+        )
         self.form.addRow("Comportamento:", self.border_mode_combo)
 
         self.color_container = QWidget()
@@ -120,7 +123,7 @@ class Launcher(QWidget):
         self.audio_container = QWidget()
         audio_layout = QVBoxLayout(self.audio_container)
         audio_layout.setContentsMargins(0, 0, 0, 0)
-        
+
         mic_top_layout = QHBoxLayout()
         self.mic_combo = QComboBox()
         self.btn_filter_mic = QPushButton("⚙️")
@@ -130,14 +133,13 @@ class Launcher(QWidget):
         self.populate_mics()
         mic_top_layout.addWidget(self.mic_combo)
         mic_top_layout.addWidget(self.btn_filter_mic)
-        
+
         self.mic_combo.currentIndexChanged.connect(self.save_current_launcher_settings)
         self.check_mic_muted = QCheckBox("Iniciar Mutado (Alt+M para Desmutar)")
         self.check_mic_muted.stateChanged.connect(self.save_current_launcher_settings)
         audio_layout.addLayout(mic_top_layout)
         audio_layout.addWidget(self.check_mic_muted)
         self.form.addRow("Microfone:", self.audio_container)
-
 
         avatar_layout = QHBoxLayout()
         self.avatar_input = QLineEdit()
@@ -155,6 +157,14 @@ class Launcher(QWidget):
         avatar_layout.addWidget(self.btn_avatar)
         avatar_layout.addWidget(self.btn_preview_avatar)
         self.form.addRow("Foto (Alt+A):", avatar_layout)
+
+        self.check_multi_cam = QCheckBox("Modo Multi-Câmeras (Abrir vários widgets)")
+        self.check_multi_cam.stateChanged.connect(self.save_current_launcher_settings)
+        self.form.addRow("", self.check_multi_cam)
+
+        self.check_hide_toolbar = QCheckBox("Ocultar controles flutuantes (Usar apenas atalhos)")
+        self.check_hide_toolbar.stateChanged.connect(self.save_current_launcher_settings)
+        self.form.addRow("", self.check_hide_toolbar)
 
         self.preview_label = QLabel()
         self.preview_label.setFixedSize(280, 200)
@@ -178,10 +188,42 @@ class Launcher(QWidget):
         self.cam_combo.currentIndexChanged.connect(self.save_current_launcher_settings)
 
         self.refresh_launcher_ui()
+        self.init_global_hotkeys()
+
+    def init_global_hotkeys(self):
+        try:
+            import keyboard
+            from classes.shortcut_signals import ShortcutSignals
+
+            self.shortcut_manager = ShortcutSignals()
+
+            keyboard.add_hotkey(
+                "alt+=", lambda: self.shortcut_manager.resize_signal.emit(20)
+            )
+            keyboard.add_hotkey(
+                "alt+plus", lambda: self.shortcut_manager.resize_signal.emit(20)
+            )
+            keyboard.add_hotkey(
+                "alt+-", lambda: self.shortcut_manager.resize_signal.emit(-20)
+            )
+            keyboard.add_hotkey(
+                "alt+s", lambda: self.shortcut_manager.toggle_signal.emit()
+            )
+            keyboard.add_hotkey(
+                "alt+a", lambda: self.shortcut_manager.toggle_avatar_signal.emit()
+            )
+            keyboard.add_hotkey(
+                "alt+m", lambda: self.shortcut_manager.toggle_mic_signal.emit()
+            )
+            keyboard.add_hotkey(
+                "alt+c", lambda: self.shortcut_manager.toggle_camera_signal.emit()
+            )
+        except Exception as e:
+            print(f"Erro ao inicializar atalhos globais: {e}")
 
     def refresh_launcher_ui(self):
         self.all_configs = load_all_configs()
-        
+
         # Bloqueia sinais para evitar loops de salvamento durante o carregamento
         self.cam_combo.blockSignals(True)
         self.mode_combo.blockSignals(True)
@@ -193,14 +235,14 @@ class Launcher(QWidget):
         self.btn_preview_avatar.blockSignals(True)
 
         self.populate_cameras()
-        
+
         # Restaura a última câmera selecionada
         last_cam = self.all_configs.get("last_camera_name")
         if last_cam:
             idx = self.cam_combo.findText(last_cam)
             if idx != -1:
                 self.cam_combo.setCurrentIndex(idx)
-        
+
         # Restaura o último formato selecionado
         last_mode = self.all_configs.get("last_mode")
         if last_mode:
@@ -221,15 +263,17 @@ class Launcher(QWidget):
 
         border_mode = self.all_configs.get("border_mode", "Cor Sólida")
         self.border_mode_combo.setCurrentText(border_mode)
-        
+
         saved_mic_idx = self.all_configs.get("mic_device", -1)
         if saved_mic_idx != -1:
             idx = self.mic_combo.findData(saved_mic_idx)
             if idx != -1:
                 self.mic_combo.setCurrentIndex(idx)
-                
+
         self.check_mic_muted.setChecked(self.all_configs.get("starts_muted", False))
-        
+        self.check_multi_cam.setChecked(self.all_configs.get("multi_cam_mode", False))
+        self.check_hide_toolbar.setChecked(self.all_configs.get("hide_toolbar", False))
+
         # Desbloqueia e sincroniza
         self.cam_combo.blockSignals(False)
         self.mode_combo.blockSignals(False)
@@ -248,93 +292,110 @@ class Launcher(QWidget):
         try:
             all_devices = FilterGraph().get_input_devices()
             ignored = self.all_configs.get("ignored_cameras", [])
-            
+
             dialog = QDialog(self)
             dialog.setWindowTitle("Filtrar Câmeras")
             dialog.setFixedWidth(300)
             d_layout = QVBoxLayout(dialog)
-            
+
             label = QLabel("Selecione as câmeras que deseja OCULTAR:")
             d_layout.addWidget(label)
-            
+
             list_widget = QListWidget()
             for name in all_devices:
                 item = QListWidgetItem(name)
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                item.setCheckState(Qt.CheckState.Checked if name in ignored else Qt.CheckState.Unchecked)
+                item.setCheckState(
+                    Qt.CheckState.Checked
+                    if name in ignored
+                    else Qt.CheckState.Unchecked
+                )
                 list_widget.addItem(item)
-            
+
             d_layout.addWidget(list_widget)
-            
-            buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+
+            buttons = QDialogButtonBox(
+                QDialogButtonBox.StandardButton.Ok
+                | QDialogButtonBox.StandardButton.Cancel
+            )
             buttons.accepted.connect(dialog.accept)
             buttons.rejected.connect(dialog.reject)
             d_layout.addWidget(buttons)
-            
+
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 new_ignored = []
                 for i in range(list_widget.count()):
                     item = list_widget.item(i)
                     if item.checkState() == Qt.CheckState.Checked:
                         new_ignored.append(item.text())
-                
+
                 from utils.functions import save_global_config
+
                 save_global_config("ignored_cameras", new_ignored)
                 self.all_configs["ignored_cameras"] = new_ignored
                 self.populate_cameras()
-                
+
         except Exception as e:
             print(f"Erro ao abrir filtros: {e}")
 
     def open_mic_filters(self):
         try:
             import sounddevice as sd
+
             devices = sd.query_devices()
             all_mics = []
             seen = set()
             for dev in devices:
-                if dev['max_input_channels'] > 0:
-                    name = dev['name']
+                if dev["max_input_channels"] > 0:
+                    name = dev["name"]
                     if name not in seen:
                         seen.add(name)
                         all_mics.append(name)
-            
+
             ignored = self.all_configs.get("ignored_mics", [])
-            
+
             dialog = QDialog(self)
             dialog.setWindowTitle("Filtrar Microfones")
             dialog.setFixedWidth(300)
             d_layout = QVBoxLayout(dialog)
-            
+
             label = QLabel("Selecione os microfones que deseja OCULTAR:")
             d_layout.addWidget(label)
-            
+
             list_widget = QListWidget()
             for name in all_mics:
                 item = QListWidgetItem(name)
                 item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                item.setCheckState(Qt.CheckState.Checked if name in ignored else Qt.CheckState.Unchecked)
+                item.setCheckState(
+                    Qt.CheckState.Checked
+                    if name in ignored
+                    else Qt.CheckState.Unchecked
+                )
                 list_widget.addItem(item)
-            
+
             d_layout.addWidget(list_widget)
-            
-            buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+
+            buttons = QDialogButtonBox(
+                QDialogButtonBox.StandardButton.Ok
+                | QDialogButtonBox.StandardButton.Cancel
+            )
             buttons.accepted.connect(dialog.accept)
             buttons.rejected.connect(dialog.reject)
             d_layout.addWidget(buttons)
-            
+
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 new_ignored = []
                 for i in range(list_widget.count()):
                     item = list_widget.item(i)
                     if item.checkState() == Qt.CheckState.Checked:
                         new_ignored.append(item.text())
-                
+
                 from utils.functions import save_global_config
+
                 save_global_config("ignored_mics", new_ignored)
                 self.all_configs["ignored_mics"] = new_ignored
                 self.populate_mics()
-                
+
         except Exception as e:
             print(f"Erro ao abrir filtros de mic: {e}")
 
@@ -358,12 +419,13 @@ class Launcher(QWidget):
         self.mic_combo.clear()
         try:
             import sounddevice as sd
+
             ignored = self.all_configs.get("ignored_mics", [])
             devices = sd.query_devices()
             seen = set()
             for i, dev in enumerate(devices):
-                if dev['max_input_channels'] > 0:
-                    name = dev['name']
+                if dev["max_input_channels"] > 0:
+                    name = dev["name"]
                     if name not in seen:
                         seen.add(name)
                         if name not in ignored:
@@ -409,10 +471,12 @@ class Launcher(QWidget):
         save_global_config("border_mode", self.border_mode_combo.currentText())
         save_global_config("last_camera_name", self.cam_combo.currentText())
         save_global_config("last_mode", self.mode_combo.currentText())
-        
+
         mic_data = self.mic_combo.currentData()
         save_global_config("mic_device", mic_data if mic_data is not None else -1)
         save_global_config("starts_muted", self.check_mic_muted.isChecked())
+        save_global_config("multi_cam_mode", self.check_multi_cam.isChecked())
+        save_global_config("hide_toolbar", self.check_hide_toolbar.isChecked())
 
         # Configurações ESPECÍFICAS de câmera/modo
         cam_idx = self.cam_combo.currentData()
@@ -435,7 +499,15 @@ class Launcher(QWidget):
         mode_cfg = configs.get(mode_key, configs.get(mode, {}))
 
         from utils.functions import save_mode_config
-        save_mode_config(mode_key, size, zoom_val, pan_val, mode_cfg.get("x", 0), mode_cfg.get("y", 0))
+
+        save_mode_config(
+            mode_key,
+            size,
+            zoom_val,
+            pan_val,
+            mode_cfg.get("x", 0),
+            mode_cfg.get("y", 0),
+        )
 
     def apply_mode_preview(self, *args):
         self.all_configs = load_all_configs()
@@ -519,7 +591,7 @@ class Launcher(QWidget):
                 new_w = int(w_orig / zoom_f)
                 y_o = int((h_orig - new_h) * pan_val)
                 x_o = (w_orig - new_w) // 2
-                frame = frame[y_o:y_o+new_h, x_o:x_o+new_w]
+                frame = frame[y_o : y_o + new_h, x_o : x_o + new_w]
 
         mode = self.mode_combo.currentText()
         h_ratio = 0.75 if "4:3" in mode else 1.0
@@ -627,11 +699,40 @@ class Launcher(QWidget):
         painter.end()
         self.preview_label.setPixmap(out_pixmap)
 
+    def remove_pip_from_list(self, pip_obj):
+        if pip_obj in self.active_pips:
+            print(f"Removendo camera {pip_obj.cam_index} da lista ativa.")
+            self.active_pips.remove(pip_obj)
+        if not self.active_pips:
+            self.restart_preview()
+
     def start_pip(self):
-        self.stop_preview()
+        is_multi = self.check_multi_cam.isChecked()
         cam_idx = self.cam_combo.currentData()
         if cam_idx == -1:
             return
+
+        # No modo NORMAL (Single), fechamos as outras antes de abrir a nova
+        if not is_multi:
+            for pip in list(self.active_pips):
+                try:
+                    pip.close()
+                except:
+                    pass
+            self.active_pips = []
+        else:
+            # No modo MULTI, apenas impedimos de abrir a MESMA câmera duas vezes
+            for pip in self.active_pips:
+                try:
+                    if pip.cam_index == cam_idx:
+                        pip.activateWindow()
+                        pip.show()
+                        return
+                except RuntimeError:
+                    self.active_pips.remove(pip)
+                    continue
+
+        self.stop_preview()
         cam_name = self.cam_combo.currentText()
         mode = self.mode_combo.currentText()
         mode_key = f"{cam_name}_{mode}"
@@ -675,8 +776,21 @@ class Launcher(QWidget):
             avatar_path,
             use_avatar_default,
             self.border_mode_combo.currentText(),
-            self.mic_combo.currentData() if self.mic_combo.currentData() is not None else -1,
+            (
+                self.mic_combo.currentData()
+                if self.mic_combo.currentData() is not None
+                else -1
+            ),
             self.check_mic_muted.isChecked(),
+            self.check_hide_toolbar.isChecked(),
         )
+
+        # Conecta o sinal de fechamento para remover da lista capturando o objeto correto
+        current_pip = self.pip
+        self.pip.destroyed.connect(lambda: self.remove_pip_from_list(current_pip))
+
+        self.active_pips.append(self.pip)
         self.pip.show()
-        self.hide()
+
+        if not is_multi:
+            self.hide()

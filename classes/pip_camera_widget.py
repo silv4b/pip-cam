@@ -40,6 +40,7 @@ class PipCameraWidget(QWidget):
         border_mode="Cor Sólida",
         mic_device=-1,
         starts_muted=False,
+        hide_toolbar=False,
     ):
         super().__init__()
         self.zoom = zoom
@@ -50,6 +51,7 @@ class PipCameraWidget(QWidget):
         self.border_mode = border_mode
         self.mic_device = mic_device
         self.is_mic_muted = starts_muted
+        self.hide_toolbar_flag = hide_toolbar
         self.audio_level = 0.0
         self.audio_stream = None
 
@@ -97,6 +99,7 @@ class PipCameraWidget(QWidget):
             | Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self.setMouseTracking(True)
         self.old_pos = None
         self._initializing = True
@@ -150,37 +153,14 @@ class PipCameraWidget(QWidget):
         self.timer.timeout.connect(self.update_frame)
         self.timer.start(30)
 
-        self.shortcut_manager = ShortcutSignals()
-        self.shortcut_manager.resize_signal.connect(self.resize_widget)
-        self.shortcut_manager.toggle_signal.connect(self.toggle_visibility)
-        self.shortcut_manager.toggle_avatar_signal.connect(self.toggle_avatar)
-        self.shortcut_manager.toggle_mic_signal.connect(self.toggle_mic)
-        self.shortcut_manager.toggle_camera_signal.connect(self.toggle_camera)
-
-        try:
-            keyboard.add_hotkey(
-                "alt+=", lambda: self.shortcut_manager.resize_signal.emit(20)
-            )
-            keyboard.add_hotkey(
-                "alt+plus", lambda: self.shortcut_manager.resize_signal.emit(20)
-            )
-            keyboard.add_hotkey(
-                "alt+-", lambda: self.shortcut_manager.resize_signal.emit(-20)
-            )
-            keyboard.add_hotkey(
-                "alt+s", lambda: self.shortcut_manager.toggle_signal.emit()
-            )
-            keyboard.add_hotkey(
-                "alt+a", lambda: self.shortcut_manager.toggle_avatar_signal.emit()
-            )
-            keyboard.add_hotkey(
-                "alt+m", lambda: self.shortcut_manager.toggle_mic_signal.emit()
-            )
-            keyboard.add_hotkey(
-                "alt+c", lambda: self.shortcut_manager.toggle_camera_signal.emit()
-            )
-        except Exception as e:
-            print(f"Erro nos atalhos: {e}")
+        # Conecta aos sinais globais do launcher
+        if hasattr(self.launcher, "shortcut_manager"):
+            mgr = self.launcher.shortcut_manager
+            mgr.resize_signal.connect(self.resize_widget)
+            mgr.toggle_signal.connect(self.toggle_visibility)
+            mgr.toggle_avatar_signal.connect(self.toggle_avatar)
+            mgr.toggle_mic_signal.connect(self.toggle_mic)
+            mgr.toggle_camera_signal.connect(self.toggle_camera)
 
     def toggle_avatar(self):
         if self.avatar_pixmap and not self.avatar_pixmap.isNull():
@@ -463,10 +443,12 @@ class PipCameraWidget(QWidget):
         self.video_label.setPixmap(out_pixmap)
 
     def enterEvent(self, event):
-        self.controls_container.show()
+        if not self.hide_toolbar_flag:
+            self.controls_container.show()
 
     def leaveEvent(self, event):
-        self.controls_container.hide()
+        if not self.hide_toolbar_flag:
+            self.controls_container.hide()
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
@@ -489,17 +471,36 @@ class PipCameraWidget(QWidget):
 
     def close_and_return(self):
         try:
-            keyboard.remove_all_hotkeys()
-        except:  # noqa
-            pass
-        self.store_current_state()
-        if self.audio_stream:
-            try:
-                self.audio_stream.stop()
-                self.audio_stream.close()
-            except:
-                pass
-        self.cap.release()
-        self.close()
-        self.launcher.refresh_launcher_ui()
-        self.launcher.show()
+            # Desconecta os sinais globais para não receber ordens após fechar
+            if hasattr(self.launcher, "shortcut_manager"):
+                mgr = self.launcher.shortcut_manager
+                try:
+                    mgr.resize_signal.disconnect(self.resize_widget)
+                    mgr.toggle_signal.disconnect(self.toggle_visibility)
+                    mgr.toggle_avatar_signal.disconnect(self.toggle_avatar)
+                    mgr.toggle_mic_signal.disconnect(self.toggle_mic)
+                    mgr.toggle_camera_signal.disconnect(self.toggle_camera)
+                except:
+                    pass
+
+            self.store_current_state()
+            if self.audio_stream:
+                try:
+                    self.audio_stream.stop()
+                    self.audio_stream.close()
+                except:
+                    pass
+            if self.cap:
+                self.cap.release()
+
+            self.close()
+            # Se não estiver no modo multi-câmeras, volta para o Launcher
+            from utils.functions import load_all_configs
+
+            cfg = load_all_configs()
+            if not cfg.get("multi_cam_mode", False):
+                self.launcher.refresh_launcher_ui()
+                self.launcher.show()
+        except Exception as e:
+            print(f"Erro ao fechar widget: {e}")
+            self.close()
