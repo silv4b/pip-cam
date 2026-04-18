@@ -1,17 +1,20 @@
 {
     "C\u00edrculo": {
-        "size": 260,
-        "x": 1570,
-        "y": 725
+        "size": 300,
+        "x": -1066,
+        "y": 38
     },
     "1:1 (Quadrado)": {
-        "size": 270,
-        "x": 1573,
-        "y": 716
+        "size": 250,
+        "x": -1020,
+        "y": 341
     },
     "4:3 (Ret\u00e2ngulo)": {
-        "size": 300,
-        "x": 1551,
-        "y": 767
-    }
+        "size": 360,
+        "x": -428,
+        "y": 380
+    },
+    "border_color": "#ff5500",
+    "avatar_path": "avatar\\perfil-github.png",
+    "use_avatar": true
 }

@@ -12,15 +12,41 @@ from PyQt6.QtGui import (
     QPixmap,
     QPainter,
     QPainterPath,
+    QColor,
+    QPen,
 )
 
 from classes.shortcut_signals import ShortcutSignals
-from utils.functions import save_mode_config
+from utils.functions import save_mode_config, save_global_config
 
 
 class PipCameraWidget(QWidget):
-    def __init__(self, size_val, cam_index, launcher, mode, pos_x, pos_y):
+    def __init__(
+        self,
+        size_val,
+        cam_index,
+        launcher,
+        mode,
+        pos_x,
+        pos_y,
+        border_color="#4d6fc4",
+        avatar_path="",
+        use_avatar_default=False,
+    ):
         super().__init__()
+        self.border_color = border_color
+        self.avatar_path = avatar_path
+        self.use_avatar = False
+
+        # Carrega o avatar se existir
+        self.avatar_pixmap = None
+        import os
+
+        if self.avatar_path and os.path.exists(self.avatar_path):
+            self.avatar_pixmap = QPixmap(self.avatar_path)
+            if not self.avatar_pixmap.isNull():
+                self.use_avatar = use_avatar_default
+
         self.launcher = launcher
         self.base_width = size_val
         self.cam_index = cam_index
@@ -70,6 +96,7 @@ class PipCameraWidget(QWidget):
         self.shortcut_manager = ShortcutSignals()
         self.shortcut_manager.resize_signal.connect(self.resize_widget)
         self.shortcut_manager.toggle_signal.connect(self.toggle_visibility)
+        self.shortcut_manager.toggle_avatar_signal.connect(self.toggle_avatar)
 
         try:
             keyboard.add_hotkey(
@@ -84,8 +111,15 @@ class PipCameraWidget(QWidget):
             keyboard.add_hotkey(
                 "alt+s", lambda: self.shortcut_manager.toggle_signal.emit()
             )
+            keyboard.add_hotkey(
+                "alt+a", lambda: self.shortcut_manager.toggle_avatar_signal.emit()
+            )
         except Exception as e:
             print(f"Erro nos atalhos: {e}")
+
+    def toggle_avatar(self):
+        if self.avatar_pixmap and not self.avatar_pixmap.isNull():
+            self.use_avatar = not self.use_avatar
 
     def toggle_visibility(self):
         if self.isVisible():
@@ -122,9 +156,11 @@ class PipCameraWidget(QWidget):
         self.video_label.setGeometry(0, 0, self.curr_w, self.curr_h)
 
         container_w, container_h = 150, 50
+        margin_bottom = 25 if self.mode == "Círculo" else 15
+
         self.controls_container.setGeometry(
             int((self.curr_w - container_w) / 2),
-            int(self.curr_h - container_h - 10),
+            int(self.curr_h - container_h - margin_bottom),
             container_w,
             container_h,
         )
@@ -143,8 +179,27 @@ class PipCameraWidget(QWidget):
         # Atualizamos o target_pos toda vez que salvamos para manter a consistência com o Alt+S
         self.target_pos = self.pos()
         save_mode_config(self.mode, self.base_width, self.x(), self.y())
+        save_global_config("use_avatar", self.use_avatar)
 
     def update_frame(self):
+        if self.use_avatar and self.avatar_pixmap:
+            # Scalamos mantendo o aspecto, porém cobrindo toda a área
+            scaled_avatar = self.avatar_pixmap.scaled(
+                self.curr_w,
+                self.curr_h,
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            # Como usamos KeepAspectRatioByExpanding, pode haver sobras horizontais ou verticais
+            x_offset = (scaled_avatar.width() - self.curr_w) // 2
+            y_offset = (scaled_avatar.height() - self.curr_h) // 2
+            cropped_avatar = scaled_avatar.copy(
+                x_offset, y_offset, self.curr_w, self.curr_h
+            )
+
+            self.draw_final_pixmap(cropped_avatar)
+            return
+
         ret, frame = self.cap.read()
         if ret:
             h_f, w_f, _ = frame.shape
@@ -173,20 +228,65 @@ class PipCameraWidget(QWidget):
                 Qt.AspectRatioMode.IgnoreAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
+            self.draw_final_pixmap(pixmap)
 
-            out_pixmap = QPixmap(self.curr_w, self.curr_h)
-            out_pixmap.fill(Qt.GlobalColor.transparent)
-            painter = QPainter(out_pixmap)
-            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            path = QPainterPath()
-            if self.mode == "Círculo":
-                path.addEllipse(0, 0, self.curr_w, self.curr_h)
-            else:
-                path.addRoundedRect(0, 0, self.curr_w, self.curr_h, 25, 25)
-            painter.setClipPath(path)
-            painter.drawPixmap(0, 0, pixmap)
-            painter.end()
-            self.video_label.setPixmap(out_pixmap)
+    def draw_final_pixmap(self, base_pixmap):
+        out_pixmap = QPixmap(self.curr_w, self.curr_h)
+        out_pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(out_pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        border_w = 6.0
+        clip_margin = 2.0
+
+        video_path = QPainterPath()
+        if self.mode == "Círculo":
+            video_path.addEllipse(
+                clip_margin,
+                clip_margin,
+                self.curr_w - 2 * clip_margin,
+                self.curr_h - 2 * clip_margin,
+            )
+        else:
+            video_path.addRoundedRect(
+                clip_margin,
+                clip_margin,
+                self.curr_w - 2 * clip_margin,
+                self.curr_h - 2 * clip_margin,
+                25 - clip_margin,
+                25 - clip_margin,
+            )
+
+        painter.setClipPath(video_path)
+        painter.drawPixmap(0, 0, base_pixmap)
+
+        # Desativa o clip para que a borda seja desenhada inteira
+        painter.setClipping(False)
+
+        # Path da borda desenhado para caber na janela (evitando lados retos)
+        border_path = QPainterPath()
+        offset = border_w / 2.0
+        if self.mode == "Círculo":
+            border_path.addEllipse(
+                offset, offset, self.curr_w - border_w, self.curr_h - border_w
+            )
+        else:
+            border_path.addRoundedRect(
+                offset,
+                offset,
+                self.curr_w - border_w,
+                self.curr_h - border_w,
+                25 - offset,
+                25 - offset,
+            )
+
+        # Desenha a borda com a cor escolhida
+        pen = QPen(QColor(self.border_color))
+        pen.setWidthF(border_w)
+        painter.setPen(pen)
+        painter.drawPath(border_path)
+
+        painter.end()
+        self.video_label.setPixmap(out_pixmap)
 
     def enterEvent(self, event):
         self.controls_container.show()

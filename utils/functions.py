@@ -25,6 +25,16 @@ def save_mode_config(mode_name, size, x, y):
         print(f"Erro ao salvar: {e}")
 
 
+def save_global_config(key, value):
+    configs = load_all_configs()
+    configs[key] = value
+    try:
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(configs, f, indent=4)
+    except Exception as e:
+        print(f"Erro ao salvar global: {e}")
+
+
 def resource_path(relative_path):
     """Retorna o caminho absoluto para o recurso, funcionando em Dev e no PyInstaller"""
     try:

@@ -13,3 +13,4 @@ output/
 # PiP Cam
 pip_config.json
 *.spec
+avatar/
