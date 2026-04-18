@@ -1,4 +1,5 @@
 import json
+import sys
 import os
 
 CONFIG_FILE = "pip_config.json"
@@ -22,3 +23,13 @@ def save_mode_config(mode_name, size, x, y):
             json.dump(configs, f, indent=4)
     except Exception as e:
         print(f"Erro ao salvar: {e}")
+
+
+def resource_path(relative_path):
+    """Retorna o caminho absoluto para o recurso, funcionando em Dev e no PyInstaller"""
+    try:
+        # O PyInstaller cria uma pasta temporária e armazena o caminho em _MEIPASS
+        base_path = sys._MEIPASS  # type: ignore
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)

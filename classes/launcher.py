@@ -7,18 +7,17 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QLineEdit,
 )
-from PyQt6.QtGui import (
-    QGuiApplication,
-    QIntValidator,
-)
+from PyQt6.QtGui import QGuiApplication, QIntValidator, QIcon
 
-from utils.functions import load_all_configs
+from utils.functions import load_all_configs, resource_path
 from classes.pip_camera_widget import PipCameraWidget
 
 
 class Launcher(QWidget):
     def __init__(self):
         super().__init__()
+        logo_path = resource_path("assets/pipcam_icon.ico")
+        self.setWindowIcon(QIcon(logo_path))
         self.setWindowTitle("PiP Cam Setup")
         self.setFixedSize(380, 320)
         layout = QVBoxLayout()
@@ -36,7 +35,7 @@ class Launcher(QWidget):
         self.btn_start = QPushButton("Iniciar Câmera")
         self.btn_start.setFixedHeight(50)
         self.btn_start.setStyleSheet(
-            "background-color: #2ecc71; color: white; font-weight: bold; border-radius: 8px;"
+            "background-color: #4d6fc4; color: white; font-weight: bold; border-radius: 8px;"
         )
         self.btn_start.clicked.connect(self.start_pip)
         layout.addLayout(form)
