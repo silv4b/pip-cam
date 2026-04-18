@@ -11,3 +11,4 @@ wheels/
 
 # PiP Cam
 pip_config.json
+PipCam.spec
