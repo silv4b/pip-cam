@@ -1,10 +1,12 @@
 import cv2
 import keyboard
+from pygrabber.dshow_graph import FilterGraph
 from PyQt6.QtWidgets import (
     QLabel,
     QWidget,
     QPushButton,
     QHBoxLayout,
+    QVBoxLayout,
 )
 from PyQt6.QtCore import QTimer, Qt, QPoint
 from PyQt6.QtGui import (
@@ -35,12 +37,40 @@ class PipCameraWidget(QWidget):
         border_color="#4d6fc4",
         avatar_path="",
         use_avatar_default=False,
+        border_mode="Cor Sólida",
+        mic_device=-1,
+        starts_muted=False,
     ):
         super().__init__()
         self.zoom = zoom
         self.border_color = border_color
+        self.current_border_color = border_color
         self.avatar_path = avatar_path
         self.use_avatar = False
+        self.border_mode = border_mode
+        self.mic_device = mic_device
+        self.is_mic_muted = starts_muted
+        self.audio_level = 0.0
+        self.audio_stream = None
+
+        if self.border_mode == "Sinalizador de Áudio" and self.mic_device != -1:
+            try:
+                import sounddevice as sd
+                import numpy as np
+
+                def audio_callback(indata, frames, time, status):
+                    rms = np.sqrt(np.mean(indata**2))
+                    self.audio_level = rms
+
+                self.audio_stream = sd.InputStream(
+                    device=self.mic_device,
+                    channels=1,
+                    samplerate=44100,
+                    callback=audio_callback,
+                )
+                self.audio_stream.start()
+            except Exception as e:
+                print(f"Erro ao abrir microfone: {e}")
 
         # Carrega o avatar se existir
         self.avatar_pixmap = None
@@ -72,22 +102,43 @@ class PipCameraWidget(QWidget):
         self._initializing = True
 
         self.video_label = QLabel(self)
+        self.video_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
         # Toolbar
         self.controls_container = QWidget(self)
-        self.controls_layout = QHBoxLayout(self.controls_container)
-        self.controls_layout.setContentsMargins(8, 0, 8, 0)
-        self.controls_layout.setSpacing(12)
+        self.main_controls_layout = QVBoxLayout(self.controls_container)
+        self.main_controls_layout.setContentsMargins(5, 5, 5, 5)
+        self.main_controls_layout.setSpacing(8)
 
+        # Fileira 1 (Superior)
+        self.row1_layout = QHBoxLayout()
+        self.row1_layout.setSpacing(10)
         self.btn_minus = self.create_button("➖")
-        self.btn_close = self.create_button("✕", is_close=True)
         self.btn_plus = self.create_button("➕")
+        self.btn_close = self.create_button("✕", is_close=True)
 
-        self.controls_layout.addWidget(self.btn_minus)
-        self.controls_layout.addWidget(self.btn_close)
-        self.controls_layout.addWidget(self.btn_plus)
+        self.row1_layout.addWidget(self.btn_minus)
+        self.row1_layout.addWidget(self.btn_plus)
+        self.row1_layout.addWidget(self.btn_close)
+
+        # Fileira 2 (Inferior)
+        self.row2_layout = QHBoxLayout()
+        self.row2_layout.setSpacing(10)
+        self.btn_mic = self.create_button("🎙️")
+        self.btn_avatar = self.create_button("🖼️")
+        self.btn_cam = self.create_button("📹")
+
+        self.row2_layout.addWidget(self.btn_mic)
+        self.row2_layout.addWidget(self.btn_avatar)
+        self.row2_layout.addWidget(self.btn_cam)
+
+        self.main_controls_layout.addLayout(self.row1_layout)
+        self.main_controls_layout.addLayout(self.row2_layout)
 
         self.btn_minus.clicked.connect(lambda: self.resize_widget(-20))
+        self.btn_mic.clicked.connect(self.toggle_mic)
+        self.btn_avatar.clicked.connect(self.toggle_avatar)
+        self.btn_cam.clicked.connect(self.toggle_camera)
         self.btn_plus.clicked.connect(lambda: self.resize_widget(20))
         self.btn_close.clicked.connect(self.close_and_return)
 
@@ -103,6 +154,8 @@ class PipCameraWidget(QWidget):
         self.shortcut_manager.resize_signal.connect(self.resize_widget)
         self.shortcut_manager.toggle_signal.connect(self.toggle_visibility)
         self.shortcut_manager.toggle_avatar_signal.connect(self.toggle_avatar)
+        self.shortcut_manager.toggle_mic_signal.connect(self.toggle_mic)
+        self.shortcut_manager.toggle_camera_signal.connect(self.toggle_camera)
 
         try:
             keyboard.add_hotkey(
@@ -120,12 +173,104 @@ class PipCameraWidget(QWidget):
             keyboard.add_hotkey(
                 "alt+a", lambda: self.shortcut_manager.toggle_avatar_signal.emit()
             )
+            keyboard.add_hotkey(
+                "alt+m", lambda: self.shortcut_manager.toggle_mic_signal.emit()
+            )
+            keyboard.add_hotkey(
+                "alt+c", lambda: self.shortcut_manager.toggle_camera_signal.emit()
+            )
         except Exception as e:
             print(f"Erro nos atalhos: {e}")
 
     def toggle_avatar(self):
         if self.avatar_pixmap and not self.avatar_pixmap.isNull():
             self.use_avatar = not self.use_avatar
+
+    def toggle_mic(self):
+        self.is_mic_muted = not self.is_mic_muted
+
+    def toggle_camera(self):
+        try:
+            from utils.functions import load_all_configs
+
+            all_devices = FilterGraph().get_input_devices()
+            configs = load_all_configs()
+            ignored = configs.get("ignored_cameras", [])
+
+            # Filtra as câmeras válidas (que não estão na lista de ignoradas)
+            devices = [d for d in all_devices if d not in ignored]
+
+            if not devices:
+                print("Nenhuma câmera disponível (todas filtradas ou desconectadas).")
+                return
+
+            if len(devices) > 1 or (
+                len(devices) == 1
+                and self.cam_index not in [all_devices.index(d) for d in devices]
+            ):
+                # Salva o estado atual da câmera que estamos saindo
+                self.store_current_state()
+
+                # Encontra o próximo índice válido
+                current_cam_name = (
+                    all_devices[self.cam_index]
+                    if self.cam_index < len(all_devices)
+                    else ""
+                )
+                try:
+                    current_idx_in_filtered = devices.index(current_cam_name)
+                    next_idx_in_filtered = (current_idx_in_filtered + 1) % len(devices)
+                except ValueError:
+                    next_idx_in_filtered = 0
+
+                new_cam_name = devices[next_idx_in_filtered]
+                new_index = all_devices.index(new_cam_name)
+
+                self.cam_index = new_index
+
+                # Reinicia a captura
+                if self.cap:
+                    self.cap.release()
+
+                import time
+
+                time.sleep(0.1)  # Breve pausa para o hardware liberar a lente
+
+                self.cap = cv2.VideoCapture(self.cam_index, cv2.CAP_DSHOW)
+
+                # Limpa buffer inicial
+                for _ in range(5):
+                    self.cap.grab()
+
+                # Garante que as propriedades de transparência não se percam
+                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+                self.video_label.setAttribute(
+                    Qt.WidgetAttribute.WA_TranslucentBackground
+                )
+
+                self.mode_key = f"{new_cam_name}_{self.mode}"
+
+                # Carrega as configurações específicas da nova câmera
+                mode_cfg = configs.get(self.mode_key, configs.get(self.mode, {}))
+
+                # Garante que os valores sejam tipos corretos
+                self.base_width = int(mode_cfg.get("size", self.base_width))
+                self.zoom = int(mode_cfg.get("zoom", 100))
+                self.pan_y = int(mode_cfg.get("pan_y", 50))
+
+                # Aplica a posição salva para esta câmera (se existir)
+                if "x" in mode_cfg and "y" in mode_cfg:
+                    self.target_pos = QPoint(int(mode_cfg["x"]), int(mode_cfg["y"]))
+                    self.move(self.target_pos)
+
+                # Atualiza a interface (tamanho e geometria)
+                self.update_ui_geometry()
+                self.update()  # Força redesenho completo
+                print(
+                    f"Câmera alterada: {new_cam_name} | Zoom: {self.zoom}% | Pan Y: {self.pan_y}%"
+                )
+        except Exception as e:
+            print(f"Erro ao trocar câmera: {e}")
 
     def toggle_visibility(self):
         if self.isVisible():
@@ -161,12 +306,12 @@ class PipCameraWidget(QWidget):
         self.setFixedSize(self.curr_w, self.curr_h)
         self.video_label.setGeometry(0, 0, self.curr_w, self.curr_h)
 
-        container_w, container_h = 150, 50
-        margin_bottom = 25 if self.mode == "Círculo" else 15
+        container_w, container_h = 140, 85
 
+        # Centraliza o container de botões exatamente no meio do widget
         self.controls_container.setGeometry(
             int((self.curr_w - container_w) / 2),
-            int(self.curr_h - container_h - margin_bottom),
+            int((self.curr_h - container_h) / 2),
             container_w,
             container_h,
         )
@@ -184,10 +329,23 @@ class PipCameraWidget(QWidget):
             return
         # Atualizamos o target_pos toda vez que salvamos para manter a consistência com o Alt+S
         self.target_pos = self.pos()
-        save_mode_config(self.mode_key, self.base_width, self.zoom, self.pan_y, self.x(), self.y())
+        save_mode_config(
+            self.mode_key, self.base_width, self.zoom, self.pan_y, self.x(), self.y()
+        )
         save_global_config("use_avatar", self.use_avatar)
 
     def update_frame(self):
+        if self.border_mode == "Sinalizador de Áudio":
+            if self.is_mic_muted:
+                self.current_border_color = "#e74c3c"  # Vermelho
+            else:
+                if self.audio_level > 0.015:
+                    self.current_border_color = "#2ecc71"  # Verde
+                else:
+                    self.current_border_color = "#2d2d2d"  # Cinza escuro
+        else:
+            self.current_border_color = self.border_color
+
         if self.use_avatar and self.avatar_pixmap:
             # Scalamos mantendo o aspecto, porém cobrindo toda a área
             scaled_avatar = self.avatar_pixmap.scaled(
@@ -296,7 +454,7 @@ class PipCameraWidget(QWidget):
             )
 
         # Desenha a borda com a cor escolhida
-        pen = QPen(QColor(self.border_color))
+        pen = QPen(QColor(self.current_border_color))
         pen.setWidthF(border_w)
         painter.setPen(pen)
         painter.drawPath(border_path)
@@ -335,6 +493,12 @@ class PipCameraWidget(QWidget):
         except:  # noqa
             pass
         self.store_current_state()
+        if self.audio_stream:
+            try:
+                self.audio_stream.stop()
+                self.audio_stream.close()
+            except:
+                pass
         self.cap.release()
         self.close()
         self.launcher.refresh_launcher_ui()
