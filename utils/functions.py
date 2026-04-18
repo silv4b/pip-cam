@@ -15,9 +15,9 @@ def load_all_configs():
     return {}
 
 
-def save_mode_config(mode_name, size, x, y):
+def save_mode_config(mode_name, size, zoom, pan_y, x, y):
     configs = load_all_configs()
-    configs[mode_name] = {"size": size, "x": x, "y": y}
+    configs[mode_name] = {"size": size, "zoom": zoom, "pan_y": pan_y, "x": x, "y": y}
     try:
         with open(CONFIG_FILE, "w") as f:
             json.dump(configs, f, indent=4)

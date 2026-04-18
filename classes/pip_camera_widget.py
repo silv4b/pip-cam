@@ -27,13 +27,17 @@ class PipCameraWidget(QWidget):
         cam_index,
         launcher,
         mode,
+        mode_key,
         pos_x,
         pos_y,
+        zoom=100,
+        pan_y=50,
         border_color="#4d6fc4",
         avatar_path="",
         use_avatar_default=False,
     ):
         super().__init__()
+        self.zoom = zoom
         self.border_color = border_color
         self.avatar_path = avatar_path
         self.use_avatar = False
@@ -51,6 +55,8 @@ class PipCameraWidget(QWidget):
         self.base_width = size_val
         self.cam_index = cam_index
         self.mode = mode
+        self.mode_key = mode_key
+        self.pan_y = pan_y
 
         # Guardamos a posição desejada de forma absoluta
         self.target_pos = QPoint(pos_x, pos_y)
@@ -178,7 +184,7 @@ class PipCameraWidget(QWidget):
             return
         # Atualizamos o target_pos toda vez que salvamos para manter a consistência com o Alt+S
         self.target_pos = self.pos()
-        save_mode_config(self.mode, self.base_width, self.x(), self.y())
+        save_mode_config(self.mode_key, self.base_width, self.zoom, self.pan_y, self.x(), self.y())
         save_global_config("use_avatar", self.use_avatar)
 
     def update_frame(self):
@@ -202,6 +208,16 @@ class PipCameraWidget(QWidget):
 
         ret, frame = self.cap.read()
         if ret:
+            zoom_f = self.zoom / 100.0
+            if zoom_f > 1.0:
+                pan_val = self.pan_y / 100.0
+                h_orig, w_orig, _ = frame.shape
+                new_h = int(h_orig / zoom_f)
+                new_w = int(w_orig / zoom_f)
+                y_o = int((h_orig - new_h) * pan_val)
+                x_o = (w_orig - new_w) // 2
+                frame = frame[y_o : y_o + new_h, x_o : x_o + new_w]
+
             h_f, w_f, _ = frame.shape
             target_ratio = self.curr_w / self.curr_h
             if (w_f / h_f) > target_ratio:
