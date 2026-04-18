@@ -1,14 +1,17 @@
-name: Build PiPCamPro
+name: Build and Release PiPCam
 
 on:
     push:
-        branches: [ "main" ]
+        tags:
+            - "v*" # Dispara quando você cria uma tag começando com 'v' (ex: v1.2.3)
     workflow_dispatch:
-        # Permite rodar manualmente pelo site do GitHub
+        # Permite rodar manualmente se necessário
 
 jobs:
-    build:
+    release:
         runs-on: windows-latest
+        permissions:
+            contents: write # Necessário para criar a release e fazer upload do arquivo
 
         steps:
             - name: Checkout repository
@@ -29,13 +32,18 @@ jobs:
 
             - name: Build Executable
               run: |
-                  uv run pyinstaller --noconsole --onefile --name "PiPCamPro" `
+                  uv run pyinstaller --noconsole --onefile --name "PiPCam" `
                   --add-data "classes;classes" `
                   --add-data "utils;utils" `
                   main.py
 
-            - name: Upload Executable Artifact
-              uses: actions/upload-artifact@v4
+            - name: Create Release and Upload Asset
+              uses: softprops/action-gh-release@v2
               with:
-                  name: PiPCamPro-Windows
-                  path: dist/PiPCamPro.exe
+                  files: dist/PiPCam.exe
+                  tag_name: ${{ github.ref_name }}
+                  name: Release ${{ github.ref_name }}
+                  draft: false
+                  prerelease: false
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
