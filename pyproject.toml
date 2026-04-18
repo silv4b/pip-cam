@@ -12,6 +12,8 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
-    "pyinstaller>=6.19.0",
-]
+dev = ["poethepoet>=0.44.0", "pyinstaller>=6.19.0"]
+
+[tool.poe.tasks]
+play = "uv run main.py"
+build = "uv run pyinstaller --noconfirm --onefile --windowed --icon=\"assets/pipcam_icon.ico\" --name=\"pipcamwin\" --add-data=\"classes;classes/\" --add-data=\"utils;utils/\" --add-data=\"assets;assets/\" main.py"

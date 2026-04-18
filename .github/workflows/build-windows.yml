@@ -32,15 +32,18 @@ jobs:
 
             - name: Build Executable
               run: |
-                  uv run pyinstaller --noconsole --onefile --name "PiPCam" `
-                  --add-data "classes;classes" `
-                  --add-data "utils;utils" `
+                  uv run pyinstaller --noconfirm --onefile --windowed `
+                  --icon "assets/pipcam_icon.ico" `
+                  --name "pipcamwin" `
+                  --add-data "classes;classes/" `
+                  --add-data "utils;utils/" `
+                  --add-data "assets;assets/" `
                   main.py
 
             - name: Create Release and Upload Asset
               uses: softprops/action-gh-release@v2
               with:
-                  files: dist/PiPCam.exe
+                  files: dist/pipcamwin.exe
                   tag_name: ${{ github.ref_name }}
                   name: Release ${{ github.ref_name }}
                   draft: false
