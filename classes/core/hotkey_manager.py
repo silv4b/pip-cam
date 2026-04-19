@@ -39,6 +39,9 @@ class HotkeyManager:
             keyboard.add_hotkey(
                 "alt+f", lambda: self.signals.toggle_format_signal.emit()
             )
+            keyboard.add_hotkey(
+                "alt+d", lambda: self.signals.toggle_border_mode_signal.emit()
+            )
 
             print("Atalhos globais inicializados com sucesso.")
         except Exception as e:

@@ -38,6 +38,7 @@ class PipCameraWidget(QWidget):
         self.is_mic_muted = starts_muted
         self.hide_toolbar_flag = hide_toolbar
         self.audio_level = 0.0
+        self.mic_device = mic_device
 
         self.config_manager = ConfigManager()
         self.audio_analyzer = None
@@ -87,6 +88,7 @@ class PipCameraWidget(QWidget):
         self.controls_container.mic_toggled.connect(self.toggle_mic)
         self.controls_container.avatar_toggled.connect(self.toggle_avatar)
         self.controls_container.format_toggled.connect(self.toggle_format)
+        self.controls_container.border_mode_toggled.connect(self.toggle_border_mode)
 
         self.controls_container.hide()
         self.update_ui_geometry()
@@ -105,6 +107,7 @@ class PipCameraWidget(QWidget):
             mgr.toggle_mic_signal.connect(self.toggle_mic)
             mgr.toggle_camera_signal.connect(self.toggle_camera)
             mgr.toggle_format_signal.connect(self.toggle_format)
+            mgr.toggle_border_mode_signal.connect(self.toggle_border_mode)
 
     def _on_audio_level_changed(self, level):
         self.audio_level = level
@@ -233,6 +236,26 @@ class PipCameraWidget(QWidget):
         self.config_manager.set_global("last_mode", self.mode)
         print(f"Formato alterado para: {self.mode}")
 
+    def toggle_border_mode(self):
+        """Alterna entre Cor Sólida e Sinalizador de Áudio (Modo Discord)."""
+        if self.border_mode == "Cor Sólida":
+            self.border_mode = "Sinalizador de Áudio"
+            # Inicia o analisador se necessário
+            if not self.audio_analyzer and self.mic_device != -1:
+                from classes.core.audio_analyzer import AudioAnalyzer
+                self.audio_analyzer = AudioAnalyzer(self.mic_device)
+                self.audio_analyzer.level_changed.connect(self._on_audio_level_changed)
+                self.audio_analyzer.start()
+            elif self.audio_analyzer:
+                self.audio_analyzer.start()
+        else:
+            self.border_mode = "Cor Sólida"
+            if self.audio_analyzer:
+                self.audio_analyzer.stop()
+
+        self.config_manager.set_global("border_mode", self.border_mode)
+        print(f"Modo de borda alterado para: {self.border_mode}")
+
     def toggle_visibility(self):
         if self.isVisible():
             # Antes de esconder, garantimos que a posição atual está salva no target_pos
@@ -357,6 +380,7 @@ class PipCameraWidget(QWidget):
                     mgr.toggle_mic_signal.disconnect(self.toggle_mic)
                     mgr.toggle_camera_signal.disconnect(self.toggle_camera)
                     mgr.toggle_format_signal.disconnect(self.toggle_format)
+                    mgr.toggle_border_mode_signal.disconnect(self.toggle_border_mode)
                 except:
                     pass
 

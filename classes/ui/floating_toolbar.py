@@ -10,31 +10,37 @@ class FloatingToolbar(QWidget):
     mic_toggled = pyqtSignal()
     avatar_toggled = pyqtSignal()
     format_toggled = pyqtSignal()
+    border_mode_toggled = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(5, 5, 5, 5)
 
-        # Row 1
+        # Row 1 (Ajustes de Janela e Fechar)
         self.row1 = QHBoxLayout()
         self.btn_minus = self._create_btn("➖")
-        self.btn_close = self._create_btn("❌", "background-color: #e74c3c;")
         self.btn_plus = self._create_btn("➕")
+        self.btn_format = self._create_btn("🖼️")
+        self.btn_format.setToolTip("Alternar Formato (Alt+F)")
+        self.btn_close = self._create_btn("❌", "background-color: #e74c3c;")
+        
         self.row1.addWidget(self.btn_minus)
-        self.row1.addWidget(self.btn_close)
         self.row1.addWidget(self.btn_plus)
+        self.row1.addWidget(self.btn_format)
+        self.row1.addWidget(self.btn_close)
 
-        # Row 2
+        # Row 2 (Captura e Áudio)
         self.row2 = QHBoxLayout()
         self.btn_mic = self._create_btn("🎤")
         self.btn_avatar = self._create_btn("😎")
+        self.btn_border_mode = self._create_btn("🎧")
+        self.btn_border_mode.setToolTip("Modo Discord / Áudio (Alt+D)")
         self.btn_cam = self._create_btn("🎥")
-        self.btn_format = self._create_btn("🖼️")
-        self.btn_format.setToolTip("Alternar Formato (Alt+F)")
+        
         self.row2.addWidget(self.btn_mic)
         self.row2.addWidget(self.btn_avatar)
-        self.row2.addWidget(self.btn_format)
+        self.row2.addWidget(self.btn_border_mode)
         self.row2.addWidget(self.btn_cam)
 
         self.layout.addLayout(self.row1)
@@ -48,6 +54,7 @@ class FloatingToolbar(QWidget):
         self.btn_mic.clicked.connect(self.mic_toggled.emit)
         self.btn_avatar.clicked.connect(self.avatar_toggled.emit)
         self.btn_format.clicked.connect(self.format_toggled.emit)
+        self.btn_border_mode.clicked.connect(self.border_mode_toggled.emit)
 
         self.hide()
 
