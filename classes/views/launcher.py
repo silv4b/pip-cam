@@ -2,7 +2,6 @@ import os
 import shutil
 import cv2
 
-from pygrabber.dshow_graph import FilterGraph
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtWidgets import (
     QWidget,
@@ -17,25 +16,14 @@ from PyQt6.QtWidgets import (
     QLabel,
     QSlider,
     QCheckBox,
-    QDialog,
-    QListWidget,
-    QListWidgetItem,
-    QDialogButtonBox,
 )
-from PyQt6.QtGui import (
-    QGuiApplication,
-    QIntValidator,
-    QIcon,
-    QColor,
-    QImage,
-    QPixmap,
-    QPainter,
-    QPainterPath,
-    QPen,
-)
+from PyQt6.QtGui import QGuiApplication, QIntValidator, QIcon, QColor, QPixmap
 
 from utils.functions import load_all_configs, resource_path, save_global_config
-from classes.pip_camera_widget import PipCameraWidget
+from classes.views.pip_widget import PipCameraWidget
+from classes.core.device_manager import DeviceManager
+from classes.ui.filter_dialogs import FilterDialog
+from classes.core.video_processor import VideoProcessor
 
 
 class Launcher(QWidget):
@@ -44,7 +32,7 @@ class Launcher(QWidget):
         logo_path = resource_path("assets/pipcam_icon.ico")
         self.setWindowIcon(QIcon(logo_path))
         self.setWindowTitle("PiP Cam Setup")
-        self.setFixedSize(440, 600)
+        self.setFixedSize(440, 700)
 
         self.all_configs = load_all_configs()
         self.preview_cap = None
@@ -53,6 +41,8 @@ class Launcher(QWidget):
         self.active_pips = []
         layout = QVBoxLayout()
         self.form = QFormLayout()
+        self.form.setVerticalSpacing(12)
+        self.form.setSpacing(10)
         cam_layout = QHBoxLayout()
         self.cam_combo = QComboBox()
         self.btn_filter = QPushButton("⚙️")
@@ -110,7 +100,8 @@ class Launcher(QWidget):
 
         self.color_container = QWidget()
         color_layout = QHBoxLayout(self.color_container)
-        color_layout.setContentsMargins(0, 0, 0, 0)
+        color_layout.setContentsMargins(0, 2, 0, 2)
+        color_layout.setSpacing(10)
         self.color_input = QLineEdit()
         self.color_input.setPlaceholderText("Ex: #4d6fc4")
         self.color_input.editingFinished.connect(self.save_current_launcher_settings)
@@ -120,14 +111,13 @@ class Launcher(QWidget):
         color_layout.addWidget(self.btn_color)
         self.form.addRow("Cor da Borda:", self.color_container)
 
-        self.audio_container = QWidget()
-        audio_layout = QVBoxLayout(self.audio_container)
-        audio_layout.setContentsMargins(0, 0, 0, 0)
-
+        # Microfone Section
+        self.mic_label = QLabel("Microfone:")
         mic_top_layout = QHBoxLayout()
         self.mic_combo = QComboBox()
+        self.mic_combo.setFixedHeight(28)
         self.btn_filter_mic = QPushButton("⚙️")
-        self.btn_filter_mic.setFixedWidth(40)
+        self.btn_filter_mic.setFixedSize(40, 28)
         self.btn_filter_mic.setToolTip("Filtrar microfones (Ignorar)")
         self.btn_filter_mic.clicked.connect(self.open_mic_filters)
         self.populate_mics()
@@ -137,9 +127,9 @@ class Launcher(QWidget):
         self.mic_combo.currentIndexChanged.connect(self.save_current_launcher_settings)
         self.check_mic_muted = QCheckBox("Iniciar Mutado (Alt+M para Desmutar)")
         self.check_mic_muted.stateChanged.connect(self.save_current_launcher_settings)
-        audio_layout.addLayout(mic_top_layout)
-        audio_layout.addWidget(self.check_mic_muted)
-        self.form.addRow("Microfone:", self.audio_container)
+
+        self.form.addRow(self.mic_label, mic_top_layout)
+        self.form.addRow("", self.check_mic_muted)
 
         avatar_layout = QHBoxLayout()
         self.avatar_input = QLineEdit()
@@ -162,8 +152,12 @@ class Launcher(QWidget):
         self.check_multi_cam.stateChanged.connect(self.save_current_launcher_settings)
         self.form.addRow("", self.check_multi_cam)
 
-        self.check_hide_toolbar = QCheckBox("Ocultar controles flutuantes (Usar apenas atalhos)")
-        self.check_hide_toolbar.stateChanged.connect(self.save_current_launcher_settings)
+        self.check_hide_toolbar = QCheckBox(
+            "Ocultar controles flutuantes (Usar apenas atalhos)"
+        )
+        self.check_hide_toolbar.stateChanged.connect(
+            self.save_current_launcher_settings
+        )
         self.form.addRow("", self.check_hide_toolbar)
 
         self.preview_label = QLabel()
@@ -290,112 +284,29 @@ class Launcher(QWidget):
 
     def open_camera_filters(self):
         try:
-            all_devices = FilterGraph().get_input_devices()
+            cameras = DeviceManager.get_cameras()
             ignored = self.all_configs.get("ignored_cameras", [])
 
-            dialog = QDialog(self)
-            dialog.setWindowTitle("Filtrar Câmeras")
-            dialog.setFixedWidth(300)
-            d_layout = QVBoxLayout(dialog)
-
-            label = QLabel("Selecione as câmeras que deseja OCULTAR:")
-            d_layout.addWidget(label)
-
-            list_widget = QListWidget()
-            for name in all_devices:
-                item = QListWidgetItem(name)
-                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                item.setCheckState(
-                    Qt.CheckState.Checked
-                    if name in ignored
-                    else Qt.CheckState.Unchecked
-                )
-                list_widget.addItem(item)
-
-            d_layout.addWidget(list_widget)
-
-            buttons = QDialogButtonBox(
-                QDialogButtonBox.StandardButton.Ok
-                | QDialogButtonBox.StandardButton.Cancel
-            )
-            buttons.accepted.connect(dialog.accept)
-            buttons.rejected.connect(dialog.reject)
-            d_layout.addWidget(buttons)
-
-            if dialog.exec() == QDialog.DialogCode.Accepted:
-                new_ignored = []
-                for i in range(list_widget.count()):
-                    item = list_widget.item(i)
-                    if item.checkState() == Qt.CheckState.Checked:
-                        new_ignored.append(item.text())
-
-                from utils.functions import save_global_config
-
+            dialog = FilterDialog("Filtrar Câmeras", cameras, ignored, self)
+            if dialog.exec():
+                new_ignored = dialog.get_selected_items()
                 save_global_config("ignored_cameras", new_ignored)
                 self.all_configs["ignored_cameras"] = new_ignored
                 self.populate_cameras()
-
         except Exception as e:
             print(f"Erro ao abrir filtros: {e}")
 
     def open_mic_filters(self):
         try:
-            import sounddevice as sd
-
-            devices = sd.query_devices()
-            all_mics = []
-            seen = set()
-            for dev in devices:
-                if dev["max_input_channels"] > 0:
-                    name = dev["name"]
-                    if name not in seen:
-                        seen.add(name)
-                        all_mics.append(name)
-
+            mics = DeviceManager.get_microphones()
             ignored = self.all_configs.get("ignored_mics", [])
 
-            dialog = QDialog(self)
-            dialog.setWindowTitle("Filtrar Microfones")
-            dialog.setFixedWidth(300)
-            d_layout = QVBoxLayout(dialog)
-
-            label = QLabel("Selecione os microfones que deseja OCULTAR:")
-            d_layout.addWidget(label)
-
-            list_widget = QListWidget()
-            for name in all_mics:
-                item = QListWidgetItem(name)
-                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-                item.setCheckState(
-                    Qt.CheckState.Checked
-                    if name in ignored
-                    else Qt.CheckState.Unchecked
-                )
-                list_widget.addItem(item)
-
-            d_layout.addWidget(list_widget)
-
-            buttons = QDialogButtonBox(
-                QDialogButtonBox.StandardButton.Ok
-                | QDialogButtonBox.StandardButton.Cancel
-            )
-            buttons.accepted.connect(dialog.accept)
-            buttons.rejected.connect(dialog.reject)
-            d_layout.addWidget(buttons)
-
-            if dialog.exec() == QDialog.DialogCode.Accepted:
-                new_ignored = []
-                for i in range(list_widget.count()):
-                    item = list_widget.item(i)
-                    if item.checkState() == Qt.CheckState.Checked:
-                        new_ignored.append(item.text())
-
-                from utils.functions import save_global_config
-
+            dialog = FilterDialog("Filtrar Microfones", mics, ignored, self)
+            if dialog.exec():
+                new_ignored = dialog.get_selected_items()
                 save_global_config("ignored_mics", new_ignored)
                 self.all_configs["ignored_mics"] = new_ignored
                 self.populate_mics()
-
         except Exception as e:
             print(f"Erro ao abrir filtros de mic: {e}")
 
@@ -413,23 +324,17 @@ class Launcher(QWidget):
     def toggle_border_config(self, mode_text):
         is_solid = mode_text == "Cor Sólida"
         self.form.setRowVisible(self.color_container, is_solid)
-        self.form.setRowVisible(self.audio_container, not is_solid)
+        self.form.setRowVisible(self.mic_label, not is_solid)
+        self.form.setRowVisible(self.check_mic_muted, not is_solid)
 
     def populate_mics(self):
         self.mic_combo.clear()
         try:
-            import sounddevice as sd
-
+            all_mics = DeviceManager.get_microphones()
             ignored = self.all_configs.get("ignored_mics", [])
-            devices = sd.query_devices()
-            seen = set()
-            for i, dev in enumerate(devices):
-                if dev["max_input_channels"] > 0:
-                    name = dev["name"]
-                    if name not in seen:
-                        seen.add(name)
-                        if name not in ignored:
-                            self.mic_combo.addItem(name, i)
+            for name in all_mics:
+                if name not in ignored:
+                    self.mic_combo.addItem(name, DeviceManager.get_mic_info(name))
         except Exception as e:
             print(f"Erro ao listar microfones: {e}")
             self.mic_combo.addItem("Erro ao detectar", -1)
@@ -530,13 +435,13 @@ class Launcher(QWidget):
     def populate_cameras(self):
         self.cam_combo.clear()
         try:
+            all_devices = DeviceManager.get_cameras()
             ignored = self.all_configs.get("ignored_cameras", [])
-            devices = FilterGraph().get_input_devices()
-            for index, name in enumerate(devices):
+            for i, name in enumerate(all_devices):
                 if name not in ignored:
-                    self.cam_combo.addItem(name, index)
-        except:  # noqa
-            self.cam_combo.addItem("Erro ao detectar", -1)
+                    self.cam_combo.addItem(name, i)
+        except Exception as e:
+            print(f"Erro ao carregar câmeras: {e}")
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -562,142 +467,55 @@ class Launcher(QWidget):
             self.preview_timer.start(30)
 
     def update_preview(self):
+        mode = self.mode_combo.currentText()
+        zoom_val = self.zoom_slider.value()
+        pan_val = self.pan_slider.value() if self.pan_slider.isEnabled() else 50
         use_avatar = (
             hasattr(self, "btn_preview_avatar") and self.btn_preview_avatar.isChecked()
         )
-        avatar_pixmap = None
+        avatar_path = self.avatar_input.text().strip()
+        avatar_pixmap = (
+            QPixmap(avatar_path)
+            if avatar_path and os.path.exists(avatar_path)
+            else None
+        )
 
-        if use_avatar:
-            avatar_path = self.avatar_input.text().strip()
-            if not avatar_path or not os.path.exists(avatar_path):
-                use_avatar = False
-            else:
-                avatar_pixmap = QPixmap(avatar_path)
-                if avatar_pixmap.isNull():
-                    use_avatar = False
+        curr_w, curr_h = 280, 200
+        if "4:3" in mode:
+            curr_h = 210
+        elif "1:1" in mode:
+            curr_h = 280
 
-        if not use_avatar:
+        self.preview_label.setFixedSize(curr_w, curr_h)
+
+        if use_avatar and avatar_pixmap:
+            pixmap = VideoProcessor.create_masked_pixmap(
+                avatar_pixmap,
+                curr_w,
+                curr_h,
+                mode,
+                self.color_input.text().strip(),
+                border_width=4.0,
+            )
+        else:
             if not self.preview_cap:
                 return
             ret, frame = self.preview_cap.read()
             if not ret:
                 return
-
-            zoom_f = self.zoom_slider.value() / 100.0
-            if zoom_f > 1.0:
-                pan_val = self.pan_slider.value() / 100.0
-                h_orig, w_orig, _ = frame.shape
-                new_h = int(h_orig / zoom_f)
-                new_w = int(w_orig / zoom_f)
-                y_o = int((h_orig - new_h) * pan_val)
-                x_o = (w_orig - new_w) // 2
-                frame = frame[y_o : y_o + new_h, x_o : x_o + new_w]
-
-        mode = self.mode_combo.currentText()
-        h_ratio = 0.75 if "4:3" in mode else 1.0
-
-        max_w, max_h = 240, 180
-        curr_w = int(max_h / h_ratio) if (max_h / h_ratio) <= max_w else max_w
-        curr_h = int(curr_w * h_ratio)
-
-        self.preview_label.setFixedSize(curr_w, curr_h)
-
-        if use_avatar and avatar_pixmap:
-            scaled_avatar = avatar_pixmap.scaled(
+            qimage = VideoProcessor.process_frame(
+                frame, zoom_val, pan_val, curr_w, curr_h
+            )
+            pixmap = VideoProcessor.create_masked_pixmap(
+                qimage,
                 curr_w,
                 curr_h,
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            x_offset = (scaled_avatar.width() - curr_w) // 2
-            y_offset = (scaled_avatar.height() - curr_h) // 2
-            pixmap = scaled_avatar.copy(x_offset, y_offset, curr_w, curr_h)
-        else:
-            h_f, w_f, _ = frame.shape
-            target_ratio = curr_w / curr_h
-            if (w_f / h_f) > target_ratio:
-                new_w = int(h_f * target_ratio)
-                offset = (w_f - new_w) // 2
-                frame = frame[:, offset : offset + new_w]  # noqa
-            else:
-                new_h = int(w_f / target_ratio)
-                offset = (h_f - new_h) // 2
-                frame = frame[offset : offset + new_h, :]  # noqa
-
-            frame = cv2.flip(frame, 1)
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            qt_img = QImage(
-                frame.data,
-                frame.shape[1],
-                frame.shape[0],
-                frame.shape[1] * 3,
-                QImage.Format.Format_RGB888,
-            )
-            pixmap = QPixmap.fromImage(qt_img).scaled(
-                curr_w,
-                curr_h,
-                Qt.AspectRatioMode.IgnoreAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
+                mode,
+                self.color_input.text().strip(),
+                border_width=4.0,
             )
 
-        out_pixmap = QPixmap(curr_w, curr_h)
-        out_pixmap.fill(Qt.GlobalColor.transparent)
-        painter = QPainter(out_pixmap)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        border_color_str = self.color_input.text().strip() or "#4d6fc4"
-        border_color = QColor(border_color_str)
-        if not border_color.isValid():
-            border_color = QColor("#4d6fc4")
-
-        border_w = 4.0
-        clip_margin = 1.5
-
-        video_path = QPainterPath()
-        if mode == "Círculo":
-            video_path.addEllipse(
-                clip_margin,
-                clip_margin,
-                curr_w - 2 * clip_margin,
-                curr_h - 2 * clip_margin,
-            )
-        else:
-            video_path.addRoundedRect(
-                clip_margin,
-                clip_margin,
-                curr_w - 2 * clip_margin,
-                curr_h - 2 * clip_margin,
-                15,
-                15,
-            )
-
-        painter.setClipPath(video_path)
-        painter.drawPixmap(0, 0, pixmap)
-        painter.setClipping(False)
-
-        border_path = QPainterPath()
-        offset_b = border_w / 2.0
-        if mode == "Círculo":
-            border_path.addEllipse(
-                offset_b, offset_b, curr_w - border_w, curr_h - border_w
-            )
-        else:
-            border_path.addRoundedRect(
-                offset_b,
-                offset_b,
-                curr_w - border_w,
-                curr_h - border_w,
-                15 - offset_b,
-                15 - offset_b,
-            )
-
-        pen = QPen(border_color)
-        pen.setWidthF(border_w)
-        painter.setPen(pen)
-        painter.drawPath(border_path)
-
-        painter.end()
-        self.preview_label.setPixmap(out_pixmap)
+        self.preview_label.setPixmap(pixmap)
 
     def remove_pip_from_list(self, pip_obj):
         if pip_obj in self.active_pips:

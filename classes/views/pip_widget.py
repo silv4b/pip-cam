@@ -1,24 +1,9 @@
 import cv2
-import keyboard
-from pygrabber.dshow_graph import FilterGraph
-from PyQt6.QtWidgets import (
-    QLabel,
-    QWidget,
-    QPushButton,
-    QHBoxLayout,
-    QVBoxLayout,
-)
+from PyQt6.QtWidgets import QLabel, QWidget
 from PyQt6.QtCore import QTimer, Qt, QPoint
-from PyQt6.QtGui import (
-    QImage,
-    QPixmap,
-    QPainter,
-    QPainterPath,
-    QColor,
-    QPen,
-)
-
-from classes.shortcut_signals import ShortcutSignals
+from PyQt6.QtGui import QColor, QPainter, QImage, QPixmap
+from classes.core.audio_analyzer import AudioAnalyzer
+from classes.ui.floating_toolbar import FloatingToolbar
 from utils.functions import save_mode_config, save_global_config
 
 
@@ -49,30 +34,15 @@ class PipCameraWidget(QWidget):
         self.avatar_path = avatar_path
         self.use_avatar = False
         self.border_mode = border_mode
-        self.mic_device = mic_device
         self.is_mic_muted = starts_muted
         self.hide_toolbar_flag = hide_toolbar
         self.audio_level = 0.0
-        self.audio_stream = None
 
+        self.audio_analyzer = None
         if self.border_mode == "Sinalizador de Áudio" and self.mic_device != -1:
-            try:
-                import sounddevice as sd
-                import numpy as np
-
-                def audio_callback(indata, frames, time, status):
-                    rms = np.sqrt(np.mean(indata**2))
-                    self.audio_level = rms
-
-                self.audio_stream = sd.InputStream(
-                    device=self.mic_device,
-                    channels=1,
-                    samplerate=44100,
-                    callback=audio_callback,
-                )
-                self.audio_stream.start()
-            except Exception as e:
-                print(f"Erro ao abrir microfone: {e}")
+            self.audio_analyzer = AudioAnalyzer(self.mic_device)
+            self.audio_analyzer.level_changed.connect(self._on_audio_level_changed)
+            self.audio_analyzer.start()
 
         # Carrega o avatar se existir
         self.avatar_pixmap = None
@@ -107,43 +77,12 @@ class PipCameraWidget(QWidget):
         self.video_label = QLabel(self)
         self.video_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        # Toolbar
-        self.controls_container = QWidget(self)
-        self.main_controls_layout = QVBoxLayout(self.controls_container)
-        self.main_controls_layout.setContentsMargins(5, 5, 5, 5)
-        self.main_controls_layout.setSpacing(8)
-
-        # Fileira 1 (Superior)
-        self.row1_layout = QHBoxLayout()
-        self.row1_layout.setSpacing(10)
-        self.btn_minus = self.create_button("➖")
-        self.btn_plus = self.create_button("➕")
-        self.btn_close = self.create_button("✕", is_close=True)
-
-        self.row1_layout.addWidget(self.btn_minus)
-        self.row1_layout.addWidget(self.btn_plus)
-        self.row1_layout.addWidget(self.btn_close)
-
-        # Fileira 2 (Inferior)
-        self.row2_layout = QHBoxLayout()
-        self.row2_layout.setSpacing(10)
-        self.btn_mic = self.create_button("🎙️")
-        self.btn_avatar = self.create_button("🖼️")
-        self.btn_cam = self.create_button("📹")
-
-        self.row2_layout.addWidget(self.btn_mic)
-        self.row2_layout.addWidget(self.btn_avatar)
-        self.row2_layout.addWidget(self.btn_cam)
-
-        self.main_controls_layout.addLayout(self.row1_layout)
-        self.main_controls_layout.addLayout(self.row2_layout)
-
-        self.btn_minus.clicked.connect(lambda: self.resize_widget(-20))
-        self.btn_mic.clicked.connect(self.toggle_mic)
-        self.btn_avatar.clicked.connect(self.toggle_avatar)
-        self.btn_cam.clicked.connect(self.toggle_camera)
-        self.btn_plus.clicked.connect(lambda: self.resize_widget(20))
-        self.btn_close.clicked.connect(self.close_and_return)
+        self.controls_container = FloatingToolbar(self)
+        self.controls_container.close_requested.connect(self.close_and_return)
+        self.controls_container.resize_requested.connect(self.resize_widget)
+        self.controls_container.camera_toggled.connect(self.toggle_camera)
+        self.controls_container.mic_toggled.connect(self.toggle_mic)
+        self.controls_container.avatar_toggled.connect(self.toggle_avatar)
 
         self.controls_container.hide()
         self.update_ui_geometry()
@@ -265,18 +204,8 @@ class PipCameraWidget(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
-        # Força a posição no nascimento da janela
         self.move(self.target_pos)
         self._initializing = False
-
-    def create_button(self, icon_text, is_close=False):
-        btn = QPushButton(icon_text)
-        btn.setFixedSize(32, 32)
-        bg = "rgba(220, 50, 50, 200)" if is_close else "rgba(40, 40, 40, 180)"
-        btn.setStyleSheet(
-            f"QPushButton {{ background-color: {bg}; color: white; border-radius: 16px; border: 1px solid rgba(255,255,255,60); font-weight: bold; }}"  # noqa
-        )
-        return btn
 
     def update_ui_geometry(self):
         h_ratio = 0.75 if "4:3" in self.mode else 1.0

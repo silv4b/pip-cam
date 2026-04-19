@@ -1,6 +1,6 @@
 import sys
 from PyQt6.QtWidgets import QApplication
-from classes.launcher import Launcher
+from classes.views.launcher import Launcher
 
 
 if __name__ == "__main__":
