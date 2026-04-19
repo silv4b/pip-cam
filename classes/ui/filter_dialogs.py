@@ -20,6 +20,23 @@ class FilterDialog(QDialog):
         self.label = QLabel(f"Selecione os itens que deseja OCULTAR:")
         self.layout.addWidget(self.label)
 
+        # Botões de seleção em massa
+        from PyQt6.QtWidgets import QHBoxLayout, QPushButton
+
+        bulk_layout = QHBoxLayout()
+        self.btn_all = QPushButton("Marcar Todos")
+        self.btn_none = QPushButton("Desmarcar Todos")
+        bulk_layout.addWidget(self.btn_all)
+        bulk_layout.addWidget(self.btn_none)
+        self.layout.addLayout(bulk_layout)
+
+        self.btn_all.clicked.connect(
+            lambda: self.set_all_checks(Qt.CheckState.Checked)
+        )
+        self.btn_none.clicked.connect(
+            lambda: self.set_all_checks(Qt.CheckState.Unchecked)
+        )
+
         self.list_widget = QListWidget()
         for item_data in items_list:
             # Se for uma tupla (como nas câmeras), pegamos o nome (index 0)
@@ -42,6 +59,10 @@ class FilterDialog(QDialog):
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
         self.layout.addWidget(self.buttons)
+
+    def set_all_checks(self, state):
+        for i in range(self.list_widget.count()):
+            self.list_widget.item(i).setCheckState(state)
 
     def get_selected_items(self):
         ignored = []
