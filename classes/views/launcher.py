@@ -339,9 +339,10 @@ class Launcher(QWidget):
             self, "Escolha um Avatar", "", "Images (*.png *.jpg *.jpeg)"
         )
         if file_path:
-            os.makedirs("avatar", exist_ok=True)
+            from utils.functions import AVATAR_DIR
+            os.makedirs(AVATAR_DIR, exist_ok=True)
             filename = os.path.basename(file_path)
-            dest_path = os.path.join("avatar", filename)
+            dest_path = os.path.join(AVATAR_DIR, filename)
             try:
                 shutil.copy(file_path, dest_path)
                 self.avatar_input.setText(dest_path)
