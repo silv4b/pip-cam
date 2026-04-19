@@ -11,9 +11,15 @@
 
 PiP (Picture-in-Picture) Cam é um widget de câmera flutuante inteligente desenvolvido com Python 3.12+ e PyQt6. Oferece uma sobreposição de webcam customizável e interativa para criadores de conteúdo, streamers e apresentações.
 
+## Screenshots
+
 | PiP Cam Setup                     | PiP Cam Widget                          |
 |:---------------------------------:|:---------------------------------------:|
 | ![example](/assets/pipcamwin.png) | ![example](/assets/pipcamwinavatar.png) |
+
+| PiP Cam Setup - Multi Cam                  |
+|:------------------------------------------:|
+| ![example](/assets/pipcammodemulticam.png) |
 
 ## Funcionalidades Principais
 
