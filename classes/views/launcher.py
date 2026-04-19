@@ -1,7 +1,6 @@
 import os
 import shutil
 import cv2
-
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtWidgets import (
     QWidget,
@@ -18,12 +17,13 @@ from PyQt6.QtWidgets import (
     QCheckBox,
 )
 from PyQt6.QtGui import QGuiApplication, QIntValidator, QIcon, QColor, QPixmap
-
-from utils.functions import load_all_configs, resource_path, save_global_config
+from utils.functions import resource_path
 from classes.views.pip_widget import PipCameraWidget
 from classes.core.device_manager import DeviceManager
 from classes.ui.filter_dialogs import FilterDialog
 from classes.core.video_processor import VideoProcessor
+from classes.core.hotkey_manager import HotkeyManager
+from classes.core.config_manager import ConfigManager
 
 
 class Launcher(QWidget):
@@ -32,9 +32,10 @@ class Launcher(QWidget):
         logo_path = resource_path("assets/pipcam_icon.ico")
         self.setWindowIcon(QIcon(logo_path))
         self.setWindowTitle("PiP Cam Setup")
-        self.setFixedSize(440, 700)
+        self.setFixedSize(440, 710)
 
-        self.all_configs = load_all_configs()
+        self.config_manager = ConfigManager()
+        self.all_configs = self.config_manager.configs
         self.preview_cap = None
         self.preview_timer = QTimer()
         self.preview_timer.timeout.connect(self.update_preview)
@@ -45,8 +46,9 @@ class Launcher(QWidget):
         self.form.setSpacing(10)
         cam_layout = QHBoxLayout()
         self.cam_combo = QComboBox()
+        self.cam_combo.setFixedHeight(26)
         self.btn_filter = QPushButton("⚙️")
-        self.btn_filter.setFixedWidth(40)
+        self.btn_filter.setFixedSize(40, 26)
         self.btn_filter.setToolTip("Filtrar câmeras (Ignorar)")
         self.btn_filter.clicked.connect(self.open_camera_filters)
         self.populate_cameras()
@@ -54,11 +56,13 @@ class Launcher(QWidget):
         cam_layout.addWidget(self.btn_filter)
         self.form.addRow("Câmera:", cam_layout)
         self.mode_combo = QComboBox()
+        self.mode_combo.setFixedHeight(26)
         self.mode_combo.addItems(["Círculo", "1:1 (Quadrado)", "4:3 (Retângulo)"])
         self.mode_combo.currentTextChanged.connect(self.apply_mode_preview)
         self.mode_combo.currentTextChanged.connect(self.save_current_launcher_settings)
         self.form.addRow("Formato:", self.mode_combo)
         self.size_input = QLineEdit()
+        self.size_input.setFixedHeight(26)
         self.size_input.setValidator(QIntValidator(100, 2000, self))
         self.size_input.editingFinished.connect(self.save_current_launcher_settings)
         self.form.addRow("Largura Inicial (px):", self.size_input)
@@ -91,6 +95,7 @@ class Launcher(QWidget):
         self.form.addRow("Alinhamento Y:", pan_layout)
 
         self.border_mode_combo = QComboBox()
+        self.border_mode_combo.setFixedHeight(26)
         self.border_mode_combo.addItems(["Cor Sólida", "Sinalizador de Áudio"])
         self.border_mode_combo.currentTextChanged.connect(self.toggle_border_config)
         self.border_mode_combo.currentTextChanged.connect(
@@ -103,9 +108,11 @@ class Launcher(QWidget):
         color_layout.setContentsMargins(0, 2, 0, 2)
         color_layout.setSpacing(10)
         self.color_input = QLineEdit()
+        self.color_input.setFixedHeight(26)
         self.color_input.setPlaceholderText("Ex: #4d6fc4")
         self.color_input.editingFinished.connect(self.save_current_launcher_settings)
         self.btn_color = QPushButton("Cor")
+        self.btn_color.setFixedSize(60, 26)
         self.btn_color.clicked.connect(self.choose_color)
         color_layout.addWidget(self.color_input)
         color_layout.addWidget(self.btn_color)
@@ -115,9 +122,9 @@ class Launcher(QWidget):
         self.mic_label = QLabel("Microfone:")
         mic_top_layout = QHBoxLayout()
         self.mic_combo = QComboBox()
-        self.mic_combo.setFixedHeight(28)
+        self.mic_combo.setFixedHeight(26)
         self.btn_filter_mic = QPushButton("⚙️")
-        self.btn_filter_mic.setFixedSize(40, 28)
+        self.btn_filter_mic.setFixedSize(40, 26)
         self.btn_filter_mic.setToolTip("Filtrar microfones (Ignorar)")
         self.btn_filter_mic.clicked.connect(self.open_mic_filters)
         self.populate_mics()
@@ -125,7 +132,9 @@ class Launcher(QWidget):
         mic_top_layout.addWidget(self.btn_filter_mic)
 
         self.mic_combo.currentIndexChanged.connect(self.save_current_launcher_settings)
-        self.check_mic_muted = QCheckBox("Iniciar Mutado (Alt+M para Desmutar)")
+        self.check_mic_muted = QCheckBox("Iniciar Mutado (Alt+M para Alternar)")
+        self.check_mic_muted.setMinimumHeight(30)
+        self.check_mic_muted.setStyleSheet("padding-bottom: 5px;")
         self.check_mic_muted.stateChanged.connect(self.save_current_launcher_settings)
 
         self.form.addRow(self.mic_label, mic_top_layout)
@@ -133,12 +142,17 @@ class Launcher(QWidget):
 
         avatar_layout = QHBoxLayout()
         self.avatar_input = QLineEdit()
+        self.avatar_input.setFixedHeight(26)
         self.avatar_input.setPlaceholderText("Nenhuma foto selecionada")
         self.avatar_input.setReadOnly(True)
+        self.avatar_input.setFixedWidth(170)
+
         self.btn_avatar = QPushButton("Procurar")
+        self.btn_avatar.setFixedSize(60, 26)
         self.btn_avatar.clicked.connect(self.choose_avatar)
 
         self.btn_preview_avatar = QPushButton("Testar")
+        self.btn_preview_avatar.setFixedSize(60, 26)
         self.btn_preview_avatar.setCheckable(True)
         self.btn_preview_avatar.setToolTip("Alterna preview entre Câmera e Avatar")
         self.btn_preview_avatar.clicked.connect(self.save_current_launcher_settings)
@@ -149,19 +163,24 @@ class Launcher(QWidget):
         self.form.addRow("Foto (Alt+A):", avatar_layout)
 
         self.check_multi_cam = QCheckBox("Modo Multi-Câmeras (Abrir vários widgets)")
+        self.check_multi_cam.setMinimumHeight(30)
+        self.check_multi_cam.setStyleSheet("padding-top: 5px;")
         self.check_multi_cam.stateChanged.connect(self.save_current_launcher_settings)
         self.form.addRow("", self.check_multi_cam)
 
         self.check_hide_toolbar = QCheckBox(
             "Ocultar controles flutuantes (Usar apenas atalhos)"
         )
+        self.check_hide_toolbar.setMinimumHeight(30)
+        self.check_hide_toolbar.setStyleSheet("padding-top: 5px;")
         self.check_hide_toolbar.stateChanged.connect(
             self.save_current_launcher_settings
         )
         self.form.addRow("", self.check_hide_toolbar)
 
+        # Preview do Setup
         self.preview_label = QLabel()
-        self.preview_label.setFixedSize(280, 200)
+        self.preview_label.setFixedSize(350, 260)
         self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.btn_start = QPushButton("Iniciar Câmera")
@@ -173,7 +192,7 @@ class Launcher(QWidget):
         layout.addLayout(self.form)
         layout.addSpacing(20)
         layout.addWidget(self.preview_label, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addSpacing(25)
+        layout.addSpacing(20)
         layout.addWidget(self.btn_start)
         self.setLayout(layout)
 
@@ -185,38 +204,12 @@ class Launcher(QWidget):
         self.init_global_hotkeys()
 
     def init_global_hotkeys(self):
-        try:
-            import keyboard
-            from classes.shortcut_signals import ShortcutSignals
-
-            self.shortcut_manager = ShortcutSignals()
-
-            keyboard.add_hotkey(
-                "alt+=", lambda: self.shortcut_manager.resize_signal.emit(20)
-            )
-            keyboard.add_hotkey(
-                "alt+plus", lambda: self.shortcut_manager.resize_signal.emit(20)
-            )
-            keyboard.add_hotkey(
-                "alt+-", lambda: self.shortcut_manager.resize_signal.emit(-20)
-            )
-            keyboard.add_hotkey(
-                "alt+s", lambda: self.shortcut_manager.toggle_signal.emit()
-            )
-            keyboard.add_hotkey(
-                "alt+a", lambda: self.shortcut_manager.toggle_avatar_signal.emit()
-            )
-            keyboard.add_hotkey(
-                "alt+m", lambda: self.shortcut_manager.toggle_mic_signal.emit()
-            )
-            keyboard.add_hotkey(
-                "alt+c", lambda: self.shortcut_manager.toggle_camera_signal.emit()
-            )
-        except Exception as e:
-            print(f"Erro ao inicializar atalhos globais: {e}")
+        self.hotkey_manager = HotkeyManager()
+        self.hotkey_manager.setup_global_hotkeys()
+        self.shortcut_manager = self.hotkey_manager.signals
 
     def refresh_launcher_ui(self):
-        self.all_configs = load_all_configs()
+        self.all_configs = self.config_manager.reload()
 
         # Bloqueia sinais para evitar loops de salvamento durante o carregamento
         self.cam_combo.blockSignals(True)
@@ -290,8 +283,8 @@ class Launcher(QWidget):
             dialog = FilterDialog("Filtrar Câmeras", cameras, ignored, self)
             if dialog.exec():
                 new_ignored = dialog.get_selected_items()
-                save_global_config("ignored_cameras", new_ignored)
-                self.all_configs["ignored_cameras"] = new_ignored
+                self.config_manager.set_global("ignored_cameras", new_ignored)
+                self.all_configs = self.config_manager.configs
                 self.populate_cameras()
         except Exception as e:
             print(f"Erro ao abrir filtros: {e}")
@@ -304,8 +297,8 @@ class Launcher(QWidget):
             dialog = FilterDialog("Filtrar Microfones", mics, ignored, self)
             if dialog.exec():
                 new_ignored = dialog.get_selected_items()
-                save_global_config("ignored_mics", new_ignored)
-                self.all_configs["ignored_mics"] = new_ignored
+                self.config_manager.set_global("ignored_mics", new_ignored)
+                self.all_configs = self.config_manager.configs
                 self.populate_mics()
         except Exception as e:
             print(f"Erro ao abrir filtros de mic: {e}")
@@ -367,21 +360,31 @@ class Launcher(QWidget):
     def save_current_launcher_settings(self):
         # Salvamos configurações GLOBAIS independentemente de ter câmera selecionada
         border_color = self.color_input.text().strip() or "#4d6fc4"
-        save_global_config("border_color", border_color)
+        self.config_manager.set_global("border_color", border_color)
 
         avatar_path = self.avatar_input.text().strip()
-        save_global_config("avatar_path", avatar_path)
+        self.config_manager.set_global("avatar_path", avatar_path)
 
-        save_global_config("use_avatar", self.btn_preview_avatar.isChecked())
-        save_global_config("border_mode", self.border_mode_combo.currentText())
-        save_global_config("last_camera_name", self.cam_combo.currentText())
-        save_global_config("last_mode", self.mode_combo.currentText())
+        self.config_manager.set_global(
+            "use_avatar", self.btn_preview_avatar.isChecked()
+        )
+        self.config_manager.set_global(
+            "border_mode", self.border_mode_combo.currentText()
+        )
+        self.config_manager.set_global("last_camera_name", self.cam_combo.currentText())
+        self.config_manager.set_global("last_mode", self.mode_combo.currentText())
 
         mic_data = self.mic_combo.currentData()
-        save_global_config("mic_device", mic_data if mic_data is not None else -1)
-        save_global_config("starts_muted", self.check_mic_muted.isChecked())
-        save_global_config("multi_cam_mode", self.check_multi_cam.isChecked())
-        save_global_config("hide_toolbar", self.check_hide_toolbar.isChecked())
+        self.config_manager.set_global(
+            "mic_device", mic_data if mic_data is not None else -1
+        )
+        self.config_manager.set_global("starts_muted", self.check_mic_muted.isChecked())
+        self.config_manager.set_global(
+            "multi_cam_mode", self.check_multi_cam.isChecked()
+        )
+        self.config_manager.set_global(
+            "hide_toolbar", self.check_hide_toolbar.isChecked()
+        )
 
         # Configurações ESPECÍFICAS de câmera/modo
         cam_idx = self.cam_combo.currentData()
@@ -400,27 +403,23 @@ class Launcher(QWidget):
         zoom_val = self.zoom_slider.value()
         pan_val = self.pan_slider.value()
 
-        configs = load_all_configs()
-        mode_cfg = configs.get(mode_key, configs.get(mode, {}))
-
-        from utils.functions import save_mode_config
-
-        save_mode_config(
+        self.config_manager.set_mode(
             mode_key,
             size,
             zoom_val,
             pan_val,
-            mode_cfg.get("x", 0),
-            mode_cfg.get("y", 0),
+            self.all_configs.get(mode_key, {}).get("x", 0),
+            self.all_configs.get(mode_key, {}).get("y", 0),
         )
+        self.all_configs = self.config_manager.configs
 
     def apply_mode_preview(self, *args):
-        self.all_configs = load_all_configs()
+        self.all_configs = self.config_manager.reload()
         mode = self.mode_combo.currentText()
         cam_name = self.cam_combo.currentText()
         mode_key = f"{cam_name}_{mode}"
 
-        mode_cfg = self.all_configs.get(mode_key, self.all_configs.get(mode, {}))
+        mode_cfg = self.config_manager.get_mode_config(mode_key, mode)
         self.size_input.setText(str(mode_cfg.get("size", "300")))
 
         # O slider muda sem emitir sinais se definirmos via blockSignals opcionalmente,
@@ -480,19 +479,19 @@ class Launcher(QWidget):
             else None
         )
 
-        curr_w, curr_h = 280, 200
-        if "4:3" in mode:
-            curr_h = 210
-        elif "1:1" in mode:
-            curr_h = 280
+        # Mantemos o tamanho da label fixo para suportar o maior preview possível (4:3 -> ~347x260)
+        self.preview_label.setFixedSize(350, 260)
 
-        self.preview_label.setFixedSize(curr_w, curr_h)
+        # Calcula tamanho da imagem do preview: Altura fixa em 260
+        p_h = 260
+        p_h_ratio = 0.75 if "4:3" in mode else 1.0
+        p_w = int(p_h / p_h_ratio)
 
         if use_avatar and avatar_pixmap:
             pixmap = VideoProcessor.create_masked_pixmap(
                 avatar_pixmap,
-                curr_w,
-                curr_h,
+                p_w,
+                p_h,
                 mode,
                 self.color_input.text().strip(),
                 border_width=4.0,
@@ -503,13 +502,11 @@ class Launcher(QWidget):
             ret, frame = self.preview_cap.read()
             if not ret:
                 return
-            qimage = VideoProcessor.process_frame(
-                frame, zoom_val, pan_val, curr_w, curr_h
-            )
+            qimage = VideoProcessor.process_frame(frame, zoom_val, pan_val, p_w, p_h)
             pixmap = VideoProcessor.create_masked_pixmap(
                 qimage,
-                curr_w,
-                curr_h,
+                p_w,
+                p_h,
                 mode,
                 self.color_input.text().strip(),
                 border_width=4.0,
@@ -560,18 +557,13 @@ class Launcher(QWidget):
         except:  # noqa
             size = 300
         border_color = self.color_input.text().strip() or "#4d6fc4"
-        save_global_config("border_color", border_color)
-
         avatar_path = self.avatar_input.text().strip()
-        save_global_config("avatar_path", avatar_path)
-
         zoom_val = self.zoom_slider.value()
         pan_val = self.pan_slider.value()
 
         self.save_current_launcher_settings()
 
-        configs = load_all_configs()
-        mode_cfg = configs.get(mode_key, configs.get(mode, {}))
+        mode_cfg = self.config_manager.get_mode_config(mode_key, mode)
         use_avatar_default = self.btn_preview_avatar.isChecked()
 
         screen = QGuiApplication.primaryScreen().geometry()  # type: ignore

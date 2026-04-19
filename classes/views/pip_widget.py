@@ -1,10 +1,11 @@
 import cv2
 from PyQt6.QtWidgets import QLabel, QWidget
 from PyQt6.QtCore import QTimer, Qt, QPoint
-from PyQt6.QtGui import QColor, QPainter, QImage, QPixmap
+from PyQt6.QtGui import QPixmap
 from classes.core.audio_analyzer import AudioAnalyzer
 from classes.ui.floating_toolbar import FloatingToolbar
-from utils.functions import save_mode_config, save_global_config
+from classes.core.video_processor import VideoProcessor
+from classes.core.config_manager import ConfigManager
 
 
 class PipCameraWidget(QWidget):
@@ -38,9 +39,10 @@ class PipCameraWidget(QWidget):
         self.hide_toolbar_flag = hide_toolbar
         self.audio_level = 0.0
 
+        self.config_manager = ConfigManager()
         self.audio_analyzer = None
-        if self.border_mode == "Sinalizador de Áudio" and self.mic_device != -1:
-            self.audio_analyzer = AudioAnalyzer(self.mic_device)
+        if self.border_mode == "Sinalizador de Áudio" and mic_device != -1:
+            self.audio_analyzer = AudioAnalyzer(mic_device)
             self.audio_analyzer.level_changed.connect(self._on_audio_level_changed)
             self.audio_analyzer.start()
 
@@ -101,6 +103,9 @@ class PipCameraWidget(QWidget):
             mgr.toggle_mic_signal.connect(self.toggle_mic)
             mgr.toggle_camera_signal.connect(self.toggle_camera)
 
+    def _on_audio_level_changed(self, level):
+        self.audio_level = level
+
     def toggle_avatar(self):
         if self.avatar_pixmap and not self.avatar_pixmap.isNull():
             self.use_avatar = not self.use_avatar
@@ -110,10 +115,10 @@ class PipCameraWidget(QWidget):
 
     def toggle_camera(self):
         try:
-            from utils.functions import load_all_configs
+            from classes.core.device_manager import DeviceManager
 
-            all_devices = FilterGraph().get_input_devices()
-            configs = load_all_configs()
+            all_devices = DeviceManager.get_cameras()
+            configs = self.config_manager.reload()
             ignored = configs.get("ignored_cameras", [])
 
             # Filtra as câmeras válidas (que não estão na lista de ignoradas)
@@ -236,140 +241,43 @@ class PipCameraWidget(QWidget):
     def store_current_state(self):
         if self.x() <= 0 and self.y() <= 0:
             return
-        # Atualizamos o target_pos toda vez que salvamos para manter a consistência com o Alt+S
         self.target_pos = self.pos()
-        save_mode_config(
+        self.config_manager.set_mode(
             self.mode_key, self.base_width, self.zoom, self.pan_y, self.x(), self.y()
         )
-        save_global_config("use_avatar", self.use_avatar)
+        self.config_manager.set_global("use_avatar", self.use_avatar)
 
     def update_frame(self):
         if self.border_mode == "Sinalizador de Áudio":
             if self.is_mic_muted:
-                self.current_border_color = "#e74c3c"  # Vermelho
+                self.current_border_color = "#e74c3c"
             else:
-                if self.audio_level > 0.015:
-                    self.current_border_color = "#2ecc71"  # Verde
-                else:
-                    self.current_border_color = "#2d2d2d"  # Cinza escuro
+                self.current_border_color = (
+                    "#2ecc71" if self.audio_level > 0.015 else "#2d2d2d"
+                )
         else:
             self.current_border_color = self.border_color
 
         if self.use_avatar and self.avatar_pixmap:
-            # Scalamos mantendo o aspecto, porém cobrindo toda a área
-            scaled_avatar = self.avatar_pixmap.scaled(
+            pixmap = VideoProcessor.create_masked_pixmap(
+                self.avatar_pixmap,
                 self.curr_w,
                 self.curr_h,
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            # Como usamos KeepAspectRatioByExpanding, pode haver sobras horizontais ou verticais
-            x_offset = (scaled_avatar.width() - self.curr_w) // 2
-            y_offset = (scaled_avatar.height() - self.curr_h) // 2
-            cropped_avatar = scaled_avatar.copy(
-                x_offset, y_offset, self.curr_w, self.curr_h
-            )
-
-            self.draw_final_pixmap(cropped_avatar)
-            return
-
-        ret, frame = self.cap.read()
-        if ret:
-            zoom_f = self.zoom / 100.0
-            if zoom_f > 1.0:
-                pan_val = self.pan_y / 100.0
-                h_orig, w_orig, _ = frame.shape
-                new_h = int(h_orig / zoom_f)
-                new_w = int(w_orig / zoom_f)
-                y_o = int((h_orig - new_h) * pan_val)
-                x_o = (w_orig - new_w) // 2
-                frame = frame[y_o : y_o + new_h, x_o : x_o + new_w]
-
-            h_f, w_f, _ = frame.shape
-            target_ratio = self.curr_w / self.curr_h
-            if (w_f / h_f) > target_ratio:
-                new_w = int(h_f * target_ratio)
-                offset = (w_f - new_w) // 2
-                frame = frame[:, offset : offset + new_w]  # noqa
-            else:
-                new_h = int(w_f / target_ratio)
-                offset = (h_f - new_h) // 2
-                frame = frame[offset : offset + new_h, :]  # noqa
-
-            frame = cv2.flip(frame, 1)
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            qt_img = QImage(
-                frame.data,
-                frame.shape[1],
-                frame.shape[0],
-                frame.shape[1] * 3,
-                QImage.Format.Format_RGB888,
-            )
-            pixmap = QPixmap.fromImage(qt_img).scaled(
-                self.curr_w,
-                self.curr_h,
-                Qt.AspectRatioMode.IgnoreAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-            self.draw_final_pixmap(pixmap)
-
-    def draw_final_pixmap(self, base_pixmap):
-        out_pixmap = QPixmap(self.curr_w, self.curr_h)
-        out_pixmap.fill(Qt.GlobalColor.transparent)
-        painter = QPainter(out_pixmap)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        border_w = 6.0
-        clip_margin = 2.0
-
-        video_path = QPainterPath()
-        if self.mode == "Círculo":
-            video_path.addEllipse(
-                clip_margin,
-                clip_margin,
-                self.curr_w - 2 * clip_margin,
-                self.curr_h - 2 * clip_margin,
+                self.mode,
+                self.current_border_color,
             )
         else:
-            video_path.addRoundedRect(
-                clip_margin,
-                clip_margin,
-                self.curr_w - 2 * clip_margin,
-                self.curr_h - 2 * clip_margin,
-                25 - clip_margin,
-                25 - clip_margin,
+            ret, frame = self.cap.read()
+            if not ret:
+                return
+            qimage = VideoProcessor.process_frame(
+                frame, self.zoom, self.pan_y, self.curr_w, self.curr_h
+            )
+            pixmap = VideoProcessor.create_masked_pixmap(
+                qimage, self.curr_w, self.curr_h, self.mode, self.current_border_color
             )
 
-        painter.setClipPath(video_path)
-        painter.drawPixmap(0, 0, base_pixmap)
-
-        # Desativa o clip para que a borda seja desenhada inteira
-        painter.setClipping(False)
-
-        # Path da borda desenhado para caber na janela (evitando lados retos)
-        border_path = QPainterPath()
-        offset = border_w / 2.0
-        if self.mode == "Círculo":
-            border_path.addEllipse(
-                offset, offset, self.curr_w - border_w, self.curr_h - border_w
-            )
-        else:
-            border_path.addRoundedRect(
-                offset,
-                offset,
-                self.curr_w - border_w,
-                self.curr_h - border_w,
-                25 - offset,
-                25 - offset,
-            )
-
-        # Desenha a borda com a cor escolhida
-        pen = QPen(QColor(self.current_border_color))
-        pen.setWidthF(border_w)
-        painter.setPen(pen)
-        painter.drawPath(border_path)
-
-        painter.end()
-        self.video_label.setPixmap(out_pixmap)
+        self.video_label.setPixmap(pixmap)
 
     def enterEvent(self, event):
         if not self.hide_toolbar_flag:
@@ -413,21 +321,14 @@ class PipCameraWidget(QWidget):
                     pass
 
             self.store_current_state()
-            if self.audio_stream:
-                try:
-                    self.audio_stream.stop()
-                    self.audio_stream.close()
-                except:
-                    pass
+            if self.audio_analyzer:
+                self.audio_analyzer.stop()
             if self.cap:
                 self.cap.release()
 
             self.close()
             # Se não estiver no modo multi-câmeras, volta para o Launcher
-            from utils.functions import load_all_configs
-
-            cfg = load_all_configs()
-            if not cfg.get("multi_cam_mode", False):
+            if not self.config_manager.get("multi_cam_mode", False):
                 self.launcher.refresh_launcher_ui()
                 self.launcher.show()
         except Exception as e:

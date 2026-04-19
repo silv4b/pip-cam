@@ -1,5 +1,4 @@
 import cv2
-import numpy as np
 from PyQt6.QtGui import QImage, QPixmap, QPainter, QPainterPath, QColor, QPen
 from PyQt6.QtCore import Qt
 
@@ -83,7 +82,17 @@ class VideoProcessor:
                 Qt.TransformationMode.SmoothTransformation,
             )
         else:
-            pixmap = image_or_pixmap
+            # Para QPixmap (Avatar), fazemos o preenchimento centralizado (Crop to fill)
+            pixmap = image_or_pixmap.scaled(
+                target_w,
+                target_h,
+                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            # Calculamos o crop central se ficou maior que o target
+            crop_x = (pixmap.width() - target_w) // 2
+            crop_y = (pixmap.height() - target_h) // 2
+            pixmap = pixmap.copy(crop_x, crop_y, target_w, target_h)
 
         painter.drawPixmap(0, 0, pixmap)
         painter.setClipping(False)

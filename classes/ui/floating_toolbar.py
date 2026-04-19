@@ -17,18 +17,18 @@ class FloatingToolbar(QWidget):
 
         # Row 1
         self.row1 = QHBoxLayout()
-        self.btn_minus = self._create_btn("−")
-        self.btn_close = self._create_btn("✕", "background-color: #e74c3c;")
-        self.btn_plus = self._create_btn("+")
+        self.btn_minus = self._create_btn("➖")
+        self.btn_close = self._create_btn("❌", "background-color: #e74c3c;")
+        self.btn_plus = self._create_btn("➕")
         self.row1.addWidget(self.btn_minus)
         self.row1.addWidget(self.btn_close)
         self.row1.addWidget(self.btn_plus)
 
         # Row 2
         self.row2 = QHBoxLayout()
-        self.btn_mic = self._create_btn("🎙️")
-        self.btn_avatar = self._create_btn("👤")
-        self.btn_cam = self._create_btn("📹")
+        self.btn_mic = self._create_btn("🎤")
+        self.btn_avatar = self._create_btn("😎")
+        self.btn_cam = self._create_btn("🎥")
         self.row2.addWidget(self.btn_mic)
         self.row2.addWidget(self.btn_avatar)
         self.row2.addWidget(self.btn_cam)
