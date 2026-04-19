@@ -72,6 +72,7 @@ class PipCameraWidget(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setMouseTracking(True)
         self.old_pos = None
         self._initializing = True
@@ -109,9 +110,11 @@ class PipCameraWidget(QWidget):
     def toggle_avatar(self):
         if self.avatar_pixmap and not self.avatar_pixmap.isNull():
             self.use_avatar = not self.use_avatar
+            self.store_current_state()
 
     def toggle_mic(self):
         self.is_mic_muted = not self.is_mic_muted
+        self.store_current_state()
 
     def toggle_camera(self):
         try:
@@ -210,6 +213,8 @@ class PipCameraWidget(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self.move(self.target_pos)
+        self.activateWindow()
+        self.raise_()
         self._initializing = False
 
     def update_ui_geometry(self):

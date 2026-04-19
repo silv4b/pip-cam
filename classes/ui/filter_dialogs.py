@@ -21,7 +21,10 @@ class FilterDialog(QDialog):
         self.layout.addWidget(self.label)
 
         self.list_widget = QListWidget()
-        for name in items_list:
+        for item_data in items_list:
+            # Se for uma tupla (como nas câmeras), pegamos o nome (index 0)
+            name = item_data[0] if isinstance(item_data, tuple) else item_data
+
             item = QListWidgetItem(name)
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(

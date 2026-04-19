@@ -5,11 +5,16 @@ import sounddevice as sd
 class DeviceManager:
     @staticmethod
     def get_cameras():
+        cameras = []
         try:
-            return FilterGraph().get_input_devices()
+            # No Windows, usamos pygrabber para listar dispositivos DirectShow
+            devices = FilterGraph().get_input_devices()
+            for i, name in enumerate(devices):
+                cameras.append((name, i))
         except Exception as e:
-            print(f"Erro ao listar câmeras: {e}")
-            return []
+            print(f"Erro ao listar câmeras no Windows: {e}")
+
+        return cameras
 
     @staticmethod
     def get_microphones():
@@ -30,7 +35,6 @@ class DeviceManager:
 
     @staticmethod
     def get_mic_info(name):
-        # Útil para pegar o index real do dispositivo pelo nome
         try:
             devices = sd.query_devices()
             for i, dev in enumerate(devices):

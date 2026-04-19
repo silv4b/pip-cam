@@ -75,7 +75,7 @@ class Launcher(QWidget):
         self.zoom_label = QLabel("1.0x")
         self.zoom_label.setFixedWidth(30)
         self.zoom_slider.valueChanged.connect(self.update_zoom_label)
-        self.zoom_slider.sliderReleased.connect(self.save_current_launcher_settings)
+        self.zoom_slider.valueChanged.connect(self.save_current_launcher_settings)
         zoom_layout.addWidget(self.zoom_slider)
         zoom_layout.addWidget(self.zoom_label)
         self.form.addRow("Zoom / Corte:", zoom_layout)
@@ -89,7 +89,7 @@ class Launcher(QWidget):
         self.pan_label = QLabel("Centro")
         self.pan_label.setFixedWidth(50)
         self.pan_slider.valueChanged.connect(self.update_pan_label)
-        self.pan_slider.sliderReleased.connect(self.save_current_launcher_settings)
+        self.pan_slider.valueChanged.connect(self.save_current_launcher_settings)
         pan_layout.addWidget(self.pan_slider)
         pan_layout.addWidget(self.pan_label)
         self.form.addRow("Alinhamento Y:", pan_layout)
@@ -436,9 +436,9 @@ class Launcher(QWidget):
         try:
             all_devices = DeviceManager.get_cameras()
             ignored = self.all_configs.get("ignored_cameras", [])
-            for i, name in enumerate(all_devices):
+            for name, cam_idx in all_devices:
                 if name not in ignored:
-                    self.cam_combo.addItem(name, i)
+                    self.cam_combo.addItem(name, cam_idx)
         except Exception as e:
             print(f"Erro ao carregar câmeras: {e}")
 
