@@ -9,6 +9,7 @@ class FloatingToolbar(QWidget):
     camera_toggled = pyqtSignal()
     mic_toggled = pyqtSignal()
     avatar_toggled = pyqtSignal()
+    format_toggled = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -29,8 +30,11 @@ class FloatingToolbar(QWidget):
         self.btn_mic = self._create_btn("🎤")
         self.btn_avatar = self._create_btn("😎")
         self.btn_cam = self._create_btn("🎥")
+        self.btn_format = self._create_btn("🖼️")
+        self.btn_format.setToolTip("Alternar Formato (Alt+F)")
         self.row2.addWidget(self.btn_mic)
         self.row2.addWidget(self.btn_avatar)
+        self.row2.addWidget(self.btn_format)
         self.row2.addWidget(self.btn_cam)
 
         self.layout.addLayout(self.row1)
@@ -43,6 +47,7 @@ class FloatingToolbar(QWidget):
         self.btn_cam.clicked.connect(self.camera_toggled.emit)
         self.btn_mic.clicked.connect(self.mic_toggled.emit)
         self.btn_avatar.clicked.connect(self.avatar_toggled.emit)
+        self.btn_format.clicked.connect(self.format_toggled.emit)
 
         self.hide()
 

@@ -86,6 +86,7 @@ class PipCameraWidget(QWidget):
         self.controls_container.camera_toggled.connect(self.toggle_camera)
         self.controls_container.mic_toggled.connect(self.toggle_mic)
         self.controls_container.avatar_toggled.connect(self.toggle_avatar)
+        self.controls_container.format_toggled.connect(self.toggle_format)
 
         self.controls_container.hide()
         self.update_ui_geometry()
@@ -103,6 +104,7 @@ class PipCameraWidget(QWidget):
             mgr.toggle_avatar_signal.connect(self.toggle_avatar)
             mgr.toggle_mic_signal.connect(self.toggle_mic)
             mgr.toggle_camera_signal.connect(self.toggle_camera)
+            mgr.toggle_format_signal.connect(self.toggle_format)
 
     def _on_audio_level_changed(self, level):
         self.audio_level = level
@@ -194,6 +196,43 @@ class PipCameraWidget(QWidget):
         except Exception as e:
             print(f"Erro ao trocar câmera: {e}")
 
+    def toggle_format(self):
+        """Alterna entre os formatos disponíveis: Círculo, 1:1, 4:3."""
+        modes = ["Círculo", "1:1 (Quadrado)", "4:3 (Retângulo)"]
+        try:
+            current_idx = modes.index(self.mode)
+            next_idx = (current_idx + 1) % len(modes)
+        except ValueError:
+            next_idx = 0
+
+        self.mode = modes[next_idx]
+        
+        # Atualiza a chave de modo (mantendo a câmera atual)
+        cam_name = self.mode_key.split("_")[0] if "_" in self.mode_key else ""
+        if not cam_name:
+             # Fallback caso a chave esteja mal formatada
+             from classes.core.device_manager import DeviceManager
+             all_cams = DeviceManager.get_cameras()
+             cam_name = all_cams[self.cam_index] if self.cam_index < len(all_cams) else ""
+
+        self.mode_key = f"{cam_name}_{self.mode}"
+        
+        # Carrega as configurações salvas para este novo formato/câmera
+        configs = self.config_manager.configs
+        mode_cfg = configs.get(self.mode_key, configs.get(self.mode, {}))
+
+        self.base_width = int(mode_cfg.get("size", self.base_width))
+        self.zoom = int(mode_cfg.get("zoom", 100))
+        self.pan_y = int(mode_cfg.get("pan_y", 50))
+
+        if "x" in mode_cfg and "y" in mode_cfg:
+            self.target_pos = QPoint(int(mode_cfg["x"]), int(mode_cfg["y"]))
+            self.move(self.target_pos)
+
+        self.update_ui_geometry()
+        self.config_manager.set_global("last_mode", self.mode)
+        print(f"Formato alterado para: {self.mode}")
+
     def toggle_visibility(self):
         if self.isVisible():
             # Antes de esconder, garantimos que a posição atual está salva no target_pos
@@ -220,7 +259,7 @@ class PipCameraWidget(QWidget):
         self.setFixedSize(self.curr_w, self.curr_h)
         self.video_label.setGeometry(0, 0, self.curr_w, self.curr_h)
 
-        container_w, container_h = 140, 85
+        container_w, container_h = 175, 85
 
         # Centraliza o container de botões exatamente no meio do widget
         self.controls_container.setGeometry(
@@ -317,6 +356,7 @@ class PipCameraWidget(QWidget):
                     mgr.toggle_avatar_signal.disconnect(self.toggle_avatar)
                     mgr.toggle_mic_signal.disconnect(self.toggle_mic)
                     mgr.toggle_camera_signal.disconnect(self.toggle_camera)
+                    mgr.toggle_format_signal.disconnect(self.toggle_format)
                 except:
                     pass
 

@@ -35,6 +35,7 @@ PiP (Picture-in-Picture) Cam é um widget de câmera flutuante inteligente desen
 | `Alt + C` | Alternar entre Câmeras (Ciclo inteligente) |
 | `Alt + M` | Mutar / Desmutar Áudio (Sinalizador Visual)|
 | `Alt + A` | Alternar entre Vídeo e Avatar              |
+| `Alt + F` | Alternar os shapes do widget               |
 | `Alt + +` | Aumentar tamanho do widget                 |
 | `Alt + -` | Diminuir tamanho do widget                 |
 | `Esc`     | Fechar widget                              |

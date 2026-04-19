@@ -36,6 +36,9 @@ class HotkeyManager:
             keyboard.add_hotkey(
                 "alt+c", lambda: self.signals.toggle_camera_signal.emit()
             )
+            keyboard.add_hotkey(
+                "alt+f", lambda: self.signals.toggle_format_signal.emit()
+            )
 
             print("Atalhos globais inicializados com sucesso.")
         except Exception as e:

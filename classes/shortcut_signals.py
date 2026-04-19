@@ -7,3 +7,4 @@ class ShortcutSignals(QObject):
     toggle_avatar_signal = pyqtSignal()
     toggle_mic_signal = pyqtSignal()
     toggle_camera_signal = pyqtSignal()
+    toggle_format_signal = pyqtSignal()
