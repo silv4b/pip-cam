@@ -284,6 +284,7 @@ class Launcher(QWidget):
             if dialog.exec():
                 new_ignored = dialog.get_selected_items()
                 self.config_manager.set_global("ignored_cameras", new_ignored)
+                self.config_manager.save_now()
                 self.all_configs = self.config_manager.configs
                 self.populate_cameras()
         except Exception as e:
@@ -298,6 +299,7 @@ class Launcher(QWidget):
             if dialog.exec():
                 new_ignored = dialog.get_selected_items()
                 self.config_manager.set_global("ignored_mics", new_ignored)
+                self.config_manager.save_now()
                 self.all_configs = self.config_manager.configs
                 self.populate_mics()
         except Exception as e:
@@ -436,9 +438,10 @@ class Launcher(QWidget):
         try:
             all_devices = DeviceManager.get_cameras()
             ignored = self.all_configs.get("ignored_cameras", [])
-            for name, cam_idx in all_devices:
+            # Filtra as câmeras válidas (que não estão na lista de ignoradas)
+            for name in all_devices:
                 if name not in ignored:
-                    self.cam_combo.addItem(name, cam_idx)
+                    self.cam_combo.addItem(name, DeviceManager.get_camera_index(name))
         except Exception as e:
             print(f"Erro ao carregar câmeras: {e}")
 

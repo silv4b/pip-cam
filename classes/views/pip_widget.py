@@ -131,19 +131,14 @@ class PipCameraWidget(QWidget):
                 print("Nenhuma câmera disponível (todas filtradas ou desconectadas).")
                 return
 
-            if len(devices) > 1 or (
-                len(devices) == 1
-                and self.cam_index not in [all_devices.index(d) for d in devices]
-            ):
+            # Se houver mais de uma câmera disponível, ou se a atual não estiver na lista filtrada
+            # (ocorre se acabamos de ignorar a câmera que estava ativa)
+            current_cam_name = all_devices[self.cam_index] if self.cam_index < len(all_devices) else ""
+            
+            if len(devices) > 1 or (len(devices) == 1 and current_cam_name not in devices):
                 # Salva o estado atual da câmera que estamos saindo
                 self.store_current_state()
 
-                # Encontra o próximo índice válido
-                current_cam_name = (
-                    all_devices[self.cam_index]
-                    if self.cam_index < len(all_devices)
-                    else ""
-                )
                 try:
                     current_idx_in_filtered = devices.index(current_cam_name)
                     next_idx_in_filtered = (current_idx_in_filtered + 1) % len(devices)
@@ -151,7 +146,7 @@ class PipCameraWidget(QWidget):
                     next_idx_in_filtered = 0
 
                 new_cam_name = devices[next_idx_in_filtered]
-                new_index = all_devices.index(new_cam_name)
+                new_index = DeviceManager.get_camera_index(new_cam_name)
 
                 self.cam_index = new_index
 

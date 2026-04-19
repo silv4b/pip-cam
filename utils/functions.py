@@ -15,24 +15,13 @@ def load_all_configs():
     return {}
 
 
-def save_mode_config(mode_name, size, zoom, pan_y, x, y):
-    configs = load_all_configs()
-    configs[mode_name] = {"size": size, "zoom": zoom, "pan_y": pan_y, "x": x, "y": y}
+def save_all_configs(configs):
+    """Salva o dicionário completo de configurações no disco."""
     try:
         with open(CONFIG_FILE, "w") as f:
             json.dump(configs, f, indent=4)
     except Exception as e:
-        print(f"Erro ao salvar: {e}")
-
-
-def save_global_config(key, value):
-    configs = load_all_configs()
-    configs[key] = value
-    try:
-        with open(CONFIG_FILE, "w") as f:
-            json.dump(configs, f, indent=4)
-    except Exception as e:
-        print(f"Erro ao salvar global: {e}")
+        print(f"Erro ao salvar configurações: {e}")
 
 
 def resource_path(relative_path):
