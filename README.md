@@ -68,4 +68,4 @@ uv run main.py
 
 ## Disclaimer
 
-A versão que está em release no momento é a [v1.2.0](https://github.com/silv4b/pip-cam/releases/tag/v1.2.0), e ela pode estar desatualizada em relação ao código fonte, pois o projeto está em desenvolvimento ativo, logo, podendo haver funcionalidades ou correções de bugs no código atual, que não estão na versão de release. Para testar o projeto em seu estado mais atualizado, siga os passos de instalação. PRs são sempre bem vindos.
+A versão que está em release no momento é a [v1.2.1](https://github.com/silv4b/pip-cam/releases/tag/v1.2.1), e ela pode estar desatualizada em relação ao código fonte, pois o projeto está em desenvolvimento ativo, logo, podendo haver funcionalidades ou correções de bugs no código atual, que não estão na versão de release. Para testar o projeto em seu estado mais atualizado, siga os passos de instalação. PRs são sempre bem vindos.
