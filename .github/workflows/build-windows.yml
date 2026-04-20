@@ -3,15 +3,14 @@ name: Build and Release PiPCam
 on:
     push:
         tags:
-            - "v*" # Dispara quando você cria uma tag começando com 'v' (ex: v1.2.3)
+            - "v*" # Dispara ao criar tags como v1.2.1
     workflow_dispatch:
-        # Permite rodar manualmente se necessário
 
 jobs:
     release:
         runs-on: windows-latest
         permissions:
-            contents: write # Necessário para criar a release e fazer upload do arquivo
+            contents: write
 
         steps:
             - name: Checkout repository
@@ -40,10 +39,16 @@ jobs:
                   --add-data "assets;assets/" `
                   main.py
 
+            - name: Compile .ISS to .EXE
+              uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+              with:
+                  path: "inno-setup-action.iss"
+
             - name: Create Release and Upload Asset
               uses: softprops/action-gh-release@v2
               with:
-                  files: dist/pipcamwin.exe
+                  # O Inno Setup por padrão coloca o resultado na pasta Output
+                  files: Output/*.exe
                   tag_name: ${{ github.ref_name }}
                   name: Release ${{ github.ref_name }}
                   draft: false

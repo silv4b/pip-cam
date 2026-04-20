@@ -14,3 +14,5 @@ output/
 pip_config.json
 *.spec
 pip_cam_config/
+Output/
+inno-setup.iss
