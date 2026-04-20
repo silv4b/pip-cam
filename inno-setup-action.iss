@@ -21,7 +21,7 @@ DisableProgramGroupPage=yes
 OutputBaseFilename=Pip Cam
 SolidCompression=yes
 WizardStyle=modern dark polar
-; ÍCONE DO INSTALADOR (O arquivo .exe que você baixa)
+; Ícone do instalador (.exe que você envia para as pessoas)
 SetupIconFile=assets\pipcam_icon.ico
 
 [Languages]
@@ -33,13 +33,14 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-; ESSENCIAL: Copia o ícone para que ele exista no PC do usuário após a instalação
+; Garante que o ícone seja copiado para a pasta do programa para ser usado nos atalhos
 Source: "assets\pipcam_icon.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
 
 [Icons]
-; CORREÇÃO DAS ASPAS: Removido as aspas internas do IconFilename
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: {app}\assets\pipcam_icon.ico
-Name: "{autocustom}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; IconFilename: {app}\assets\pipcam_icon.ico
+; Atalho no Menu Iniciar
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\assets\pipcam_icon.ico"
+; Atalho na Área de Trabalho - Corrigido para {autodesktop}
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; IconFilename: "{app}\assets\pipcam_icon.ico"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
