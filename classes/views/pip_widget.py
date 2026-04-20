@@ -19,6 +19,7 @@ class PipCameraWidget(QWidget):
         pos_x,
         pos_y,
         zoom=100,
+        pan_x=50,
         pan_y=50,
         border_color="#4d6fc4",
         avatar_path="",
@@ -61,6 +62,7 @@ class PipCameraWidget(QWidget):
         self.cam_index = cam_index
         self.mode = mode
         self.mode_key = mode_key
+        self.pan_x = pan_x
         self.pan_y = pan_y
 
         # Guardamos a posição desejada de forma absoluta
@@ -139,7 +141,7 @@ class PipCameraWidget(QWidget):
             # Se houver mais de uma câmera disponível, ou se a atual não estiver na lista filtrada
             # (ocorre se acabamos de ignorar a câmera que estava ativa)
             current_cam_name = all_devices[self.cam_index] if self.cam_index < len(all_devices) else ""
-            
+
             if len(devices) > 1 or (len(devices) == 1 and current_cam_name not in devices):
                 # Salva o estado atual da câmera que estamos saindo
                 self.store_current_state()
@@ -183,6 +185,7 @@ class PipCameraWidget(QWidget):
                 # Garante que os valores sejam tipos corretos
                 self.base_width = int(mode_cfg.get("size", self.base_width))
                 self.zoom = int(mode_cfg.get("zoom", 100))
+                self.pan_x = int(mode_cfg.get("pan_x", 50))
                 self.pan_y = int(mode_cfg.get("pan_y", 50))
 
                 # Aplica a posição salva para esta câmera (se existir)
@@ -194,7 +197,7 @@ class PipCameraWidget(QWidget):
                 self.update_ui_geometry()
                 self.update()  # Força redesenho completo
                 print(
-                    f"Câmera alterada: {new_cam_name} | Zoom: {self.zoom}% | Pan Y: {self.pan_y}%"
+                    f"Câmera alterada: {new_cam_name} | Zoom: {self.zoom}% | Pan X: {self.pan_x}% | Pan Y: {self.pan_y}%"
                 )
         except Exception as e:
             print(f"Erro ao trocar câmera: {e}")
@@ -209,7 +212,7 @@ class PipCameraWidget(QWidget):
             next_idx = 0
 
         self.mode = modes[next_idx]
-        
+
         # Atualiza a chave de modo (mantendo a câmera atual)
         cam_name = self.mode_key.split("_")[0] if "_" in self.mode_key else ""
         if not cam_name:
@@ -219,18 +222,15 @@ class PipCameraWidget(QWidget):
              cam_name = all_cams[self.cam_index] if self.cam_index < len(all_cams) else ""
 
         self.mode_key = f"{cam_name}_{self.mode}"
-        
+
         # Carrega as configurações salvas para este novo formato/câmera
         configs = self.config_manager.configs
         mode_cfg = configs.get(self.mode_key, configs.get(self.mode, {}))
 
         self.base_width = int(mode_cfg.get("size", self.base_width))
         self.zoom = int(mode_cfg.get("zoom", 100))
+        self.pan_x = int(mode_cfg.get("pan_x", 50))
         self.pan_y = int(mode_cfg.get("pan_y", 50))
-
-        if "x" in mode_cfg and "y" in mode_cfg:
-            self.target_pos = QPoint(int(mode_cfg["x"]), int(mode_cfg["y"]))
-            self.move(self.target_pos)
 
         self.update_ui_geometry()
         self.config_manager.set_global("last_mode", self.mode)
@@ -305,7 +305,7 @@ class PipCameraWidget(QWidget):
             return
         self.target_pos = self.pos()
         self.config_manager.set_mode(
-            self.mode_key, self.base_width, self.zoom, self.pan_y, self.x(), self.y()
+            self.mode_key, self.base_width, self.zoom, self.pan_x, self.pan_y, self.x(), self.y()
         )
         self.config_manager.set_global("use_avatar", self.use_avatar)
 
@@ -333,7 +333,7 @@ class PipCameraWidget(QWidget):
             if not ret:
                 return
             qimage = VideoProcessor.process_frame(
-                frame, self.zoom, self.pan_y, self.curr_w, self.curr_h
+                frame, self.zoom, self.pan_x, self.pan_y, self.curr_w, self.curr_h
             )
             pixmap = VideoProcessor.create_masked_pixmap(
                 qimage, self.curr_w, self.curr_h, self.mode, self.current_border_color

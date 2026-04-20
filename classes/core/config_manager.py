@@ -33,13 +33,13 @@ class ConfigManager:
         self.configs[key] = value
         self.request_save()
 
-    def set_mode(self, mode_key, size, zoom, pan_y, x=0, y=0):
+    def set_mode(self, mode_key, size, zoom, pan_x, pan_y, x=0, y=0):
         """Atualiza uma configuração de modo no cache e agenda salvamento."""
         if mode_key not in self.configs:
             self.configs[mode_key] = {}
 
         self.configs[mode_key].update(
-            {"size": size, "zoom": zoom, "pan_y": pan_y, "x": x, "y": y}
+            {"size": size, "zoom": zoom, "pan_x": pan_x, "pan_y": pan_y, "x": x, "y": y}
         )
         self.request_save()
 

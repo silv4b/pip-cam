@@ -5,7 +5,7 @@ from PyQt6.QtCore import Qt
 
 class VideoProcessor:
     @staticmethod
-    def process_frame(frame, zoom, pan_y, target_w, target_h):
+    def process_frame(frame, zoom, pan_x, pan_y, target_w, target_h):
         if frame is None:
             return None
 
@@ -16,9 +16,13 @@ class VideoProcessor:
             zoom_f = zoom / 100.0
             new_h = int(h_orig / zoom_f)
             new_w = int(w_orig / zoom_f)
-            pan_val = pan_y / 100.0
-            y_o = int((h_orig - new_h) * pan_val)
-            x_o = (w_orig - new_w) // 2
+            
+            pan_x_val = pan_x / 100.0
+            pan_y_val = pan_y / 100.0
+            
+            y_o = int((h_orig - new_h) * pan_y_val)
+            x_o = int((w_orig - new_w) * pan_x_val)
+            
             frame = frame[y_o : y_o + new_h, x_o : x_o + new_w]
 
         # Aspect Ratio

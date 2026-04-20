@@ -4,7 +4,25 @@ import os
 import shutil
 
 # Configurações de diretórios centralizados
-BASE_DIR = "pip_cam_config"
+if os.name == 'nt':
+    # No Windows, usamos a pasta AppData do usuário
+    APPDATA = os.environ.get('APPDATA', os.path.expanduser('~\\AppData\\Roaming'))
+    BASE_DIR = os.path.join(APPDATA, "PiP_Cam")
+    
+    # Migração do diretório local para o AppData (se existir localmente e não no AppData)
+    LOCAL_BASE_DIR = "pip_cam_config"
+    if os.path.exists(LOCAL_BASE_DIR) and not os.path.exists(BASE_DIR):
+        try:
+            # Tenta criar a pasta pai se necessário
+            os.makedirs(os.path.dirname(BASE_DIR), exist_ok=True)
+            shutil.move(LOCAL_BASE_DIR, BASE_DIR)
+            print(f"Migrado diretório de configuração: {LOCAL_BASE_DIR} -> {BASE_DIR}")
+        except Exception as e:
+            print(f"Erro ao migrar diretório local para AppData: {e}")
+else:
+    # No Linux/MacOS usamos uma pasta oculta na home
+    BASE_DIR = os.path.join(os.path.expanduser('~'), ".pip_cam_config")
+
 CONFIG_FILE = os.path.join(BASE_DIR, "pip_config.json")
 AVATAR_DIR = os.path.join(BASE_DIR, "avatars")
 
@@ -93,6 +111,8 @@ def load_all_configs():
 def save_all_configs(configs):
     """Salva o dicionário completo de configurações no disco."""
     try:
+        # Garante que a pasta existe antes de tentar salvar o arquivo
+        os.makedirs(BASE_DIR, exist_ok=True)
         with open(CONFIG_FILE, "w") as f:
             json.dump(configs, f, indent=4)
     except Exception as e:

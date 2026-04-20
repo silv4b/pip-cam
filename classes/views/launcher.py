@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QSlider,
     QCheckBox,
+    QMessageBox,
 )
 from PyQt6.QtGui import QGuiApplication, QIntValidator, QIcon, QColor, QPixmap
 from utils.functions import resource_path
@@ -93,6 +94,20 @@ class Launcher(QWidget):
         pan_layout.addWidget(self.pan_slider)
         pan_layout.addWidget(self.pan_label)
         self.form.addRow("Alinhamento Y:", pan_layout)
+
+        pan_x_layout = QHBoxLayout()
+        self.pan_x_slider = QSlider(Qt.Orientation.Horizontal)
+        self.pan_x_slider.setMinimum(0)
+        self.pan_x_slider.setMaximum(100)
+        self.pan_x_slider.setValue(50)
+        self.pan_x_slider.setSingleStep(5)
+        self.pan_x_label = QLabel("Centro")
+        self.pan_x_label.setFixedWidth(50)
+        self.pan_x_slider.valueChanged.connect(self.update_pan_x_label)
+        self.pan_x_slider.valueChanged.connect(self.save_current_launcher_settings)
+        pan_x_layout.addWidget(self.pan_x_slider)
+        pan_x_layout.addWidget(self.pan_x_label)
+        self.form.addRow("Alinhamento X:", pan_x_layout)
 
         self.border_mode_combo = QComboBox()
         self.border_mode_combo.setFixedHeight(26)
@@ -183,17 +198,33 @@ class Launcher(QWidget):
         self.preview_label.setFixedSize(350, 260)
         self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
+        # Botões de Ação Inferiores
+        actions_layout = QHBoxLayout()
+        actions_layout.setSpacing(10)
+
         self.btn_start = QPushButton("Iniciar Câmera")
         self.btn_start.setFixedHeight(50)
         self.btn_start.setStyleSheet(
             "background-color: #4d6fc4; color: white; font-weight: bold; border-radius: 8px;"
         )
         self.btn_start.clicked.connect(self.start_pip)
+
+        self.btn_reset = QPushButton("🗑️")
+        self.btn_reset.setFixedSize(50, 50)
+        self.btn_reset.setToolTip("Resetar Configurações")
+        self.btn_reset.setStyleSheet(
+            "background-color: #f44336; color: white; font-size: 20px; border-radius: 8px;"
+        )
+        self.btn_reset.clicked.connect(self.confirm_reset_settings)
+
+        actions_layout.addWidget(self.btn_start, 7)  # Proporção 7 de 8
+        actions_layout.addWidget(self.btn_reset, 1)  # Proporção 1 de 8
+
         layout.addLayout(self.form)
         layout.addSpacing(20)
         layout.addWidget(self.preview_label, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addSpacing(20)
-        layout.addWidget(self.btn_start)
+        layout.addSpacing(10)
+        layout.addLayout(actions_layout)
         self.setLayout(layout)
 
         self.cam_combo.currentIndexChanged.connect(self.restart_preview)
@@ -218,6 +249,7 @@ class Launcher(QWidget):
         self.mic_combo.blockSignals(True)
         self.zoom_slider.blockSignals(True)
         self.pan_slider.blockSignals(True)
+        self.pan_x_slider.blockSignals(True)
         self.check_mic_muted.blockSignals(True)
         self.btn_preview_avatar.blockSignals(True)
 
@@ -268,6 +300,7 @@ class Launcher(QWidget):
         self.mic_combo.blockSignals(False)
         self.zoom_slider.blockSignals(False)
         self.pan_slider.blockSignals(False)
+        self.pan_x_slider.blockSignals(False)
         self.check_mic_muted.blockSignals(False)
         self.btn_preview_avatar.blockSignals(False)
 
@@ -316,6 +349,14 @@ class Launcher(QWidget):
         else:
             self.pan_label.setText("Centro")
 
+    def update_pan_x_label(self, value):
+        if value < 45:
+            self.pan_x_label.setText("Esq.")
+        elif value > 55:
+            self.pan_x_label.setText("Dir.")
+        else:
+            self.pan_x_label.setText("Centro")
+
     def toggle_border_config(self, mode_text):
         is_solid = mode_text == "Cor Sólida"
         self.form.setRowVisible(self.color_container, is_solid)
@@ -340,6 +381,7 @@ class Launcher(QWidget):
         )
         if file_path:
             from utils.functions import AVATAR_DIR
+
             os.makedirs(AVATAR_DIR, exist_ok=True)
             filename = os.path.basename(file_path)
             dest_path = os.path.join(AVATAR_DIR, filename)
@@ -404,12 +446,14 @@ class Launcher(QWidget):
             size = 300
 
         zoom_val = self.zoom_slider.value()
+        pan_x_val = self.pan_x_slider.value()
         pan_val = self.pan_slider.value()
 
         self.config_manager.set_mode(
             mode_key,
             size,
             zoom_val,
+            pan_x_val,
             pan_val,
             self.all_configs.get(mode_key, {}).get("x", 0),
             self.all_configs.get(mode_key, {}).get("y", 0),
@@ -429,10 +473,13 @@ class Launcher(QWidget):
         # mas aqui setting o value atualiza o preview.
         self.zoom_slider.blockSignals(True)
         self.pan_slider.blockSignals(True)
+        self.pan_x_slider.blockSignals(True)
         self.zoom_slider.setValue(mode_cfg.get("zoom", 100))
         self.pan_slider.setValue(mode_cfg.get("pan_y", 50))
+        self.pan_x_slider.setValue(mode_cfg.get("pan_x", 50))
         self.zoom_slider.blockSignals(False)
         self.pan_slider.blockSignals(False)
+        self.pan_x_slider.blockSignals(False)
 
     def populate_cameras(self):
         self.cam_combo.clear()
@@ -472,6 +519,7 @@ class Launcher(QWidget):
     def update_preview(self):
         mode = self.mode_combo.currentText()
         zoom_val = self.zoom_slider.value()
+        pan_x_val = self.pan_x_slider.value() if self.pan_x_slider.isEnabled() else 50
         pan_val = self.pan_slider.value() if self.pan_slider.isEnabled() else 50
         use_avatar = (
             hasattr(self, "btn_preview_avatar") and self.btn_preview_avatar.isChecked()
@@ -506,7 +554,7 @@ class Launcher(QWidget):
             ret, frame = self.preview_cap.read()
             if not ret:
                 return
-            qimage = VideoProcessor.process_frame(frame, zoom_val, pan_val, p_w, p_h)
+            qimage = VideoProcessor.process_frame(frame, zoom_val, pan_x_val, pan_val, p_w, p_h)
             pixmap = VideoProcessor.create_masked_pixmap(
                 qimage,
                 p_w,
@@ -563,6 +611,7 @@ class Launcher(QWidget):
         border_color = self.color_input.text().strip() or "#4d6fc4"
         avatar_path = self.avatar_input.text().strip()
         zoom_val = self.zoom_slider.value()
+        pan_x_val = self.pan_x_slider.value()
         pan_val = self.pan_slider.value()
 
         self.save_current_launcher_settings()
@@ -585,6 +634,7 @@ class Launcher(QWidget):
             pos_x,
             pos_y,
             zoom_val,
+            pan_x_val,
             pan_val,
             border_color,
             avatar_path,
@@ -608,3 +658,48 @@ class Launcher(QWidget):
 
         if not is_multi:
             self.hide()
+
+    def confirm_reset_settings(self):
+        reply = QMessageBox.question(
+            self,
+            "Confirmar Reset",
+            "Deseja realmente apagar todas as configurações e avatares?\nIsso não pode ser desfeito.\nO programa será encerrado após a operação.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            self.perform_reset()
+
+    def perform_reset(self):
+        try:
+            from utils.functions import BASE_DIR
+
+            self.stop_preview()
+
+            # Para o timer de salvamento para evitar que ele tente salvar após o delete
+            if hasattr(self.config_manager, "_save_timer"):
+                self.config_manager._save_timer.stop()
+
+            # Fecha todos os widgets ativos
+            for pip in list(self.active_pips):
+                try:
+                    pip.close()
+                except:
+                    pass
+            self.active_pips = []
+
+            # Apaga a pasta de configurações inteira
+            if os.path.exists(BASE_DIR):
+                shutil.rmtree(BASE_DIR)
+                print(f"Diretório {BASE_DIR} removido com sucesso.")
+
+            QMessageBox.information(
+                self,
+                "Reset concluído",
+                "As configurações foram apagadas.\nO aplicativo será fechado.",
+            )
+            self.close()
+            QGuiApplication.quit()
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao resetar: {e}")
