@@ -40,6 +40,12 @@ class Launcher(QWidget):
         self.preview_cap = None
         self.preview_timer = QTimer()
         self.preview_timer.timeout.connect(self.update_preview)
+        
+        # Timer para retomar o preview após mover a janela
+        self.resume_timer = QTimer()
+        self.resume_timer.setSingleShot(True)
+        self.resume_timer.timeout.connect(self.resume_preview)
+
         self.active_pips = []
         layout = QVBoxLayout()
         self.form = QFormLayout()
@@ -500,6 +506,19 @@ class Launcher(QWidget):
     def hideEvent(self, event):
         super().hideEvent(event)
         self.stop_preview()
+
+    def moveEvent(self, event):
+        """Pausa o preview enquanto a janela está sendo movida para garantir fluidez."""
+        super().moveEvent(event)
+        if self.preview_timer.isActive():
+            self.preview_timer.stop()
+        # Debounce: retoma o preview 50ms após o último movimento
+        self.resume_timer.start(50)
+
+    def resume_preview(self):
+        """Retoma apenas o timer, sem reconectar o hardware da câmera."""
+        if self.isVisible() and self.preview_cap:
+            self.preview_timer.start(30)
 
     def stop_preview(self):
         self.preview_timer.stop()

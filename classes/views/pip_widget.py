@@ -100,6 +100,11 @@ class PipCameraWidget(QWidget):
         self.timer.timeout.connect(self.update_frame)
         self.timer.start(30)
 
+        # Timer para retomar o preview após mover o widget
+        self.resume_timer = QTimer()
+        self.resume_timer.setSingleShot(True)
+        self.resume_timer.timeout.connect(self.resume_preview)
+
         # Conecta aos sinais globais do launcher
         if hasattr(self.launcher, "shortcut_manager"):
             mgr = self.launcher.shortcut_manager
@@ -341,6 +346,11 @@ class PipCameraWidget(QWidget):
 
         self.video_label.setPixmap(pixmap)
 
+    def resume_preview(self):
+        """Retoma o processamento de frames após o movimento."""
+        if self.isVisible() and self.cap:
+            self.timer.start(30)
+
     def enterEvent(self, event):
         if not self.hide_toolbar_flag:
             self.controls_container.show()
@@ -355,6 +365,10 @@ class PipCameraWidget(QWidget):
 
     def mouseMoveEvent(self, event):
         if self.old_pos:
+            # Pausa o processamento durante o arrasto
+            if self.timer.isActive():
+                self.timer.stop()
+
             delta = event.globalPosition().toPoint() - self.old_pos
             self.move(self.x() + delta.x(), self.y() + delta.y())
             self.old_pos = event.globalPosition().toPoint()
@@ -362,6 +376,7 @@ class PipCameraWidget(QWidget):
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
             self.old_pos = None
+            self.resume_timer.start(50)  # Retomada com 50ms de delay
             self.store_current_state()
 
     def keyPressEvent(self, event):
