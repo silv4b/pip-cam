@@ -18,7 +18,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 DisableProgramGroupPage=yes
-OutputBaseFilename=Pip Cam
+OutputBaseFilename=PipCamInstaller
 SolidCompression=yes
 WizardStyle=modern dark polar
 ; Ícone do instalador (.exe que você envia para as pessoas)
@@ -38,9 +38,9 @@ Source: "assets\pipcam_icon.ico"; DestDir: "{app}\assets"; Flags: ignoreversion
 
 [Icons]
 ; Atalho no Menu Iniciar
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\assets\pipcam_icon.ico"
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 ; Atalho na Área de Trabalho - Corrigido para {autodesktop}
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; IconFilename: "{app}\assets\pipcam_icon.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
