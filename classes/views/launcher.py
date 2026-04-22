@@ -40,7 +40,7 @@ class Launcher(QWidget):
         self.preview_cap = None
         self.preview_timer = QTimer()
         self.preview_timer.timeout.connect(self.update_preview)
-        
+
         # Timer para retomar o preview após mover a janela
         self.resume_timer = QTimer()
         self.resume_timer.setSingleShot(True)
@@ -573,7 +573,9 @@ class Launcher(QWidget):
             ret, frame = self.preview_cap.read()
             if not ret:
                 return
-            qimage = VideoProcessor.process_frame(frame, zoom_val, pan_x_val, pan_val, p_w, p_h)
+            qimage = VideoProcessor.process_frame(
+                frame, zoom_val, pan_x_val, pan_val, p_w, p_h
+            )
             pixmap = VideoProcessor.create_masked_pixmap(
                 qimage,
                 p_w,
@@ -639,10 +641,24 @@ class Launcher(QWidget):
         use_avatar_default = self.btn_preview_avatar.isChecked()
 
         screen = QGuiApplication.primaryScreen().geometry()  # type: ignore
+        center_x = (screen.width() - size) // 2
+        center_y = (screen.height() - size) // 2
 
-        # Pega a posição do config ou centraliza
-        pos_x = mode_cfg.get("x", (screen.width() - size) // 2)
-        pos_y = mode_cfg.get("y", (screen.height() - size) // 2)
+        # Só usa posição salva se for específica deste mode_key (não de um fallback)
+        own_cfg = self.config_manager.configs.get(mode_key, {})
+        saved_x = own_cfg.get("x")
+        saved_y = own_cfg.get("y")
+
+        # Valida se as coordenadas estão dentro dos limites da tela
+        if (
+            saved_x is not None
+            and saved_y is not None
+            and 0 <= saved_x <= screen.width() - size
+            and 0 <= saved_y <= screen.height() - size
+        ):
+            pos_x, pos_y = saved_x, saved_y
+        else:
+            pos_x, pos_y = center_x, center_y
 
         self.pip = PipCameraWidget(
             size,

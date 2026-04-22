@@ -145,9 +145,13 @@ class PipCameraWidget(QWidget):
 
             # Se houver mais de uma câmera disponível, ou se a atual não estiver na lista filtrada
             # (ocorre se acabamos de ignorar a câmera que estava ativa)
-            current_cam_name = all_devices[self.cam_index] if self.cam_index < len(all_devices) else ""
+            current_cam_name = (
+                all_devices[self.cam_index] if self.cam_index < len(all_devices) else ""
+            )
 
-            if len(devices) > 1 or (len(devices) == 1 and current_cam_name not in devices):
+            if len(devices) > 1 or (
+                len(devices) == 1 and current_cam_name not in devices
+            ):
                 # Salva o estado atual da câmera que estamos saindo
                 self.store_current_state()
 
@@ -216,15 +220,21 @@ class PipCameraWidget(QWidget):
         except ValueError:
             next_idx = 0
 
+        # Salva o estado atual ANTES de trocar o formato
+        self.store_current_state()
+
         self.mode = modes[next_idx]
 
         # Atualiza a chave de modo (mantendo a câmera atual)
         cam_name = self.mode_key.split("_")[0] if "_" in self.mode_key else ""
         if not cam_name:
-             # Fallback caso a chave esteja mal formatada
-             from classes.core.device_manager import DeviceManager
-             all_cams = DeviceManager.get_cameras()
-             cam_name = all_cams[self.cam_index] if self.cam_index < len(all_cams) else ""
+            # Fallback caso a chave esteja mal formatada
+            from classes.core.device_manager import DeviceManager
+
+            all_cams = DeviceManager.get_cameras()
+            cam_name = (
+                all_cams[self.cam_index] if self.cam_index < len(all_cams) else ""
+            )
 
         self.mode_key = f"{cam_name}_{self.mode}"
 
@@ -248,6 +258,7 @@ class PipCameraWidget(QWidget):
             # Inicia o analisador se necessário
             if not self.audio_analyzer and self.mic_device != -1:
                 from classes.core.audio_analyzer import AudioAnalyzer
+
                 self.audio_analyzer = AudioAnalyzer(self.mic_device)
                 self.audio_analyzer.level_changed.connect(self._on_audio_level_changed)
                 self.audio_analyzer.start()
@@ -306,11 +317,18 @@ class PipCameraWidget(QWidget):
             self.update_ui_geometry()
 
     def store_current_state(self):
-        if self.x() <= 0 and self.y() <= 0:
+        # Ignora apenas se a janela ainda não foi posicionada (coordenadas negativas)
+        if self.x() < 0 or self.y() < 0:
             return
         self.target_pos = self.pos()
         self.config_manager.set_mode(
-            self.mode_key, self.base_width, self.zoom, self.pan_x, self.pan_y, self.x(), self.y()
+            self.mode_key,
+            self.base_width,
+            self.zoom,
+            self.pan_x,
+            self.pan_y,
+            self.x(),
+            self.y(),
         )
         self.config_manager.set_global("use_avatar", self.use_avatar)
 
