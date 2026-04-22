@@ -2,7 +2,6 @@ import cv2
 from PyQt6.QtWidgets import QLabel, QWidget
 from PyQt6.QtCore import QTimer, Qt, QPoint
 from PyQt6.QtGui import QPixmap
-from classes.core.audio_analyzer import AudioAnalyzer
 from classes.ui.floating_toolbar import FloatingToolbar
 from classes.core.video_processor import VideoProcessor
 from classes.core.config_manager import ConfigManager
@@ -44,6 +43,8 @@ class PipCameraWidget(QWidget):
         self.config_manager = ConfigManager()
         self.audio_analyzer = None
         if self.border_mode == "Sinalizador de Áudio" and mic_device != -1:
+            from classes.core.audio_analyzer import AudioAnalyzer
+
             self.audio_analyzer = AudioAnalyzer(mic_device)
             self.audio_analyzer.level_changed.connect(self._on_audio_level_changed)
             self.audio_analyzer.start()
@@ -255,11 +256,10 @@ class PipCameraWidget(QWidget):
         """Alterna entre Cor Sólida e Sinalizador de Áudio (Modo Discord)."""
         if self.border_mode == "Cor Sólida":
             self.border_mode = "Sinalizador de Áudio"
-            # Inicia o analisador se necessário
             if not self.audio_analyzer and self.mic_device != -1:
                 from classes.core.audio_analyzer import AudioAnalyzer
 
-                self.audio_analyzer = AudioAnalyzer(self.mic_device)
+                self.audio_analyzer = AudioAnalyzer(mic_device)
                 self.audio_analyzer.level_changed.connect(self._on_audio_level_changed)
                 self.audio_analyzer.start()
             elif self.audio_analyzer:

@@ -1,6 +1,5 @@
 import os
 import shutil
-import cv2
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtWidgets import (
     QWidget,
@@ -22,8 +21,6 @@ from utils.functions import resource_path
 from classes.views.pip_widget import PipCameraWidget
 from classes.core.device_manager import DeviceManager
 from classes.ui.filter_dialogs import FilterDialog
-from classes.core.video_processor import VideoProcessor
-from classes.core.hotkey_manager import HotkeyManager
 from classes.core.config_manager import ConfigManager
 
 
@@ -241,6 +238,8 @@ class Launcher(QWidget):
         self.init_global_hotkeys()
 
     def init_global_hotkeys(self):
+        from classes.core.hotkey_manager import HotkeyManager
+
         self.hotkey_manager = HotkeyManager()
         self.hotkey_manager.setup_global_hotkeys()
         self.shortcut_manager = self.hotkey_manager.signals
@@ -532,10 +531,14 @@ class Launcher(QWidget):
         self.stop_preview()
         cam_idx = self.cam_combo.currentData()
         if cam_idx is not None and cam_idx != -1:
+            import cv2
+
             self.preview_cap = cv2.VideoCapture(cam_idx, cv2.CAP_DSHOW)
             self.preview_timer.start(30)
 
     def update_preview(self):
+        from classes.core.video_processor import VideoProcessor
+
         mode = self.mode_combo.currentText()
         zoom_val = self.zoom_slider.value()
         pan_x_val = self.pan_x_slider.value() if self.pan_x_slider.isEnabled() else 50
