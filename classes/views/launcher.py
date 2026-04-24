@@ -30,7 +30,7 @@ class Launcher(QWidget):
         logo_path = resource_path("assets/pipcam_icon.ico")
         self.setWindowIcon(QIcon(logo_path))
         self.setWindowTitle("PiP Cam Setup")
-        self.setFixedSize(440, 710)
+        self.setFixedSize(440, 810)
 
         self.config_manager = ConfigManager()
         self.all_configs = self.config_manager.configs
@@ -158,6 +158,28 @@ class Launcher(QWidget):
         self.form.addRow(self.mic_label, mic_top_layout)
         self.form.addRow("", self.check_mic_muted)
 
+        audio_sensitivity_layout = QHBoxLayout()
+        self.audio_sensitivity_slider = QSlider(Qt.Orientation.Horizontal)
+        self.audio_sensitivity_slider.setMinimum(1)
+        self.audio_sensitivity_slider.setMaximum(10)
+        self.audio_sensitivity_slider.setValue(2)
+        self.audio_sensitivity_slider.setToolTip(
+            "Ajusta a amplificação do sinal do microfone"
+        )
+        self.audio_sensitivity_label = QLabel("2.0x")
+        self.audio_sensitivity_label.setFixedWidth(35)
+        self.audio_sensitivity_slider.valueChanged.connect(
+            self.update_audio_sensitivity_label
+        )
+        self.audio_sensitivity_slider.valueChanged.connect(
+            self.save_current_launcher_settings
+        )
+        audio_sensitivity_layout.addWidget(self.audio_sensitivity_slider)
+        audio_sensitivity_layout.addWidget(self.audio_sensitivity_label)
+        self.audio_sensitivity_container = QWidget()
+        self.audio_sensitivity_container.setLayout(audio_sensitivity_layout)
+        self.form.addRow("Sensibilidade Áudio:", self.audio_sensitivity_container)
+
         avatar_layout = QHBoxLayout()
         self.avatar_input = QLineEdit()
         self.avatar_input.setFixedHeight(26)
@@ -255,6 +277,7 @@ class Launcher(QWidget):
         self.zoom_slider.blockSignals(True)
         self.pan_slider.blockSignals(True)
         self.pan_x_slider.blockSignals(True)
+        self.audio_sensitivity_slider.blockSignals(True)
         self.check_mic_muted.blockSignals(True)
         self.btn_preview_avatar.blockSignals(True)
 
@@ -298,6 +321,10 @@ class Launcher(QWidget):
         self.check_multi_cam.setChecked(self.all_configs.get("multi_cam_mode", False))
         self.check_hide_toolbar.setChecked(self.all_configs.get("hide_toolbar", False))
 
+        audio_sensitivity = self.all_configs.get("audio_sensitivity", 2.0)
+        self.audio_sensitivity_slider.setValue(int(audio_sensitivity))
+        self.audio_sensitivity_label.setText(f"{audio_sensitivity:.1f}x")
+
         # Desbloqueia e sincroniza
         self.cam_combo.blockSignals(False)
         self.mode_combo.blockSignals(False)
@@ -306,6 +333,7 @@ class Launcher(QWidget):
         self.zoom_slider.blockSignals(False)
         self.pan_slider.blockSignals(False)
         self.pan_x_slider.blockSignals(False)
+        self.audio_sensitivity_slider.blockSignals(False)
         self.check_mic_muted.blockSignals(False)
         self.btn_preview_avatar.blockSignals(False)
 
@@ -362,11 +390,15 @@ class Launcher(QWidget):
         else:
             self.pan_x_label.setText("Centro")
 
+    def update_audio_sensitivity_label(self, value):
+        self.audio_sensitivity_label.setText(f"{value / 1.0:.1f}x")
+
     def toggle_border_config(self, mode_text):
         is_solid = mode_text == "Cor Sólida"
         self.form.setRowVisible(self.color_container, is_solid)
         self.form.setRowVisible(self.mic_label, not is_solid)
         self.form.setRowVisible(self.check_mic_muted, not is_solid)
+        self.form.setRowVisible(self.audio_sensitivity_container, not is_solid)
 
     def populate_mics(self):
         self.mic_combo.clear()
@@ -434,6 +466,9 @@ class Launcher(QWidget):
         )
         self.config_manager.set_global(
             "hide_toolbar", self.check_hide_toolbar.isChecked()
+        )
+        self.config_manager.set_global(
+            "audio_sensitivity", self.audio_sensitivity_slider.value()
         )
 
         # Configurações ESPECÍFICAS de câmera/modo

@@ -37,15 +37,19 @@ class PipCameraWidget(QWidget):
         self.border_mode = border_mode
         self.is_mic_muted = starts_muted
         self.hide_toolbar_flag = hide_toolbar
-        self.audio_level = 0.0
-        self.mic_device = mic_device
-
         self.config_manager = ConfigManager()
+        self.audio_level = 0.0
+        self.audio_sensitivity = self.config_manager.configs.get(
+            "audio_sensitivity", 2.0
+        )
+        self.audio_threshold = self.config_manager.configs.get("audio_threshold", 0.01)
+        self.mic_device = mic_device
         self.audio_analyzer = None
         if self.border_mode == "Sinalizador de Áudio" and mic_device != -1:
             from classes.core.audio_analyzer import AudioAnalyzer
 
             self.audio_analyzer = AudioAnalyzer(mic_device)
+            self.audio_analyzer.set_sensitivity(self.audio_sensitivity)
             self.audio_analyzer.level_changed.connect(self._on_audio_level_changed)
             self.audio_analyzer.start()
 
@@ -259,7 +263,8 @@ class PipCameraWidget(QWidget):
             if not self.audio_analyzer and self.mic_device != -1:
                 from classes.core.audio_analyzer import AudioAnalyzer
 
-                self.audio_analyzer = AudioAnalyzer(mic_device)
+                self.audio_analyzer = AudioAnalyzer(self.mic_device)
+                self.audio_analyzer.set_sensitivity(self.audio_sensitivity)
                 self.audio_analyzer.level_changed.connect(self._on_audio_level_changed)
                 self.audio_analyzer.start()
             elif self.audio_analyzer:
@@ -338,7 +343,7 @@ class PipCameraWidget(QWidget):
                 self.current_border_color = "#e74c3c"
             else:
                 self.current_border_color = (
-                    "#2ecc71" if self.audio_level > 0.015 else "#2d2d2d"
+                    "#2ecc71" if self.audio_level > self.audio_threshold else "#2d2d2d"
                 )
         else:
             self.current_border_color = self.border_color

@@ -11,6 +11,12 @@ class AudioAnalyzer(QObject):
         self.device_index = device_index
         self.stream = None
         self.current_level = 0.0
+        self.sensitivity = 1.0
+        self.rms_history = []
+        self.history_size = 5
+
+    def set_sensitivity(self, value):
+        self.sensitivity = value
 
     def start(self):
         if self.device_index == -1:
@@ -19,7 +25,14 @@ class AudioAnalyzer(QObject):
 
             def audio_callback(indata, frames, time, status):
                 rms = np.sqrt(np.mean(indata**2))
-                self.current_level = float(rms)
+
+                self.rms_history.append(float(rms))
+                if len(self.rms_history) > self.history_size:
+                    self.rms_history.pop(0)
+
+                smoothed_rms = np.mean(self.rms_history)
+                amplified = smoothed_rms * self.sensitivity
+                self.current_level = min(amplified, 1.0)
                 self.level_changed.emit(self.current_level)
 
             self.stream = sd.InputStream(

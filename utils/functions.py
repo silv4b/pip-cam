@@ -4,11 +4,11 @@ import os
 import shutil
 
 # Configurações de diretórios centralizados
-if os.name == 'nt':
+if os.name == "nt":
     # No Windows, usamos a pasta AppData do usuário
-    APPDATA = os.environ.get('APPDATA', os.path.expanduser('~\\AppData\\Roaming'))
+    APPDATA = os.environ.get("APPDATA", os.path.expanduser("~\\AppData\\Roaming"))
     BASE_DIR = os.path.join(APPDATA, "PiP_Cam")
-    
+
     # Migração do diretório local para o AppData (se existir localmente e não no AppData)
     LOCAL_BASE_DIR = "pip_cam_config"
     if os.path.exists(LOCAL_BASE_DIR) and not os.path.exists(BASE_DIR):
@@ -21,13 +21,14 @@ if os.name == 'nt':
             print(f"Erro ao migrar diretório local para AppData: {e}")
 else:
     # No Linux/MacOS usamos uma pasta oculta na home
-    BASE_DIR = os.path.join(os.path.expanduser('~'), ".pip_cam_config")
+    BASE_DIR = os.path.join(os.path.expanduser("~"), ".pip_cam_config")
 
 CONFIG_FILE = os.path.join(BASE_DIR, "pip_config.json")
 AVATAR_DIR = os.path.join(BASE_DIR, "avatars")
 
 # Garante que as pastas existam
 os.makedirs(AVATAR_DIR, exist_ok=True)
+
 
 # Migração: Se existirem arquivos na raiz, move para a pasta centralizada
 def _migrate_old_files():
@@ -39,7 +40,7 @@ def _migrate_old_files():
             shutil.move(OLD_CONFIG, CONFIG_FILE)
             print(f"Migrado: {OLD_CONFIG} -> {CONFIG_FILE}")
             migrated = True
-            
+
         # Move avatars
         OLD_AVATAR_DIR = "avatar"
         if os.path.exists(OLD_AVATAR_DIR):
@@ -60,17 +61,18 @@ def _migrate_old_files():
         if migrated and os.path.exists(CONFIG_FILE):
             with open(CONFIG_FILE, "r") as f:
                 content = f.read()
-            
+
             # Substitui o caminho antigo pelo novo no texto do JSON
             new_content = content.replace('"avatar/', f'"{AVATAR_DIR}/')
             new_content = new_content.replace("\\\\avatar\\\\", f"{AVATAR_DIR}\\\\")
-            
+
             with open(CONFIG_FILE, "w") as f:
                 f.write(new_content)
             print("Caminhos internos de avatares atualizados no config.")
 
     except Exception as e:
         print(f"Erro na migração: {e}")
+
 
 _migrate_old_files()
 
@@ -88,6 +90,8 @@ DEFAULT_CONFIGS = {
     "ignored_cameras": [],
     "ignored_mics": [],
     "mic_device": -1,
+    "audio_sensitivity": 2.0,
+    "audio_threshold": 0.01,
 }
 
 
