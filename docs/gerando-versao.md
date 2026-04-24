@@ -71,3 +71,11 @@ Para manter o projeto organizado, tente seguir esta lógica para os números:
 * **v2.0.0 (Major)**: Quando há uma mudança incompatível ou uma refatoração total da interface.
 
 > **Nota:** Certifique-se de que o arquivo `.github/workflows/build.yml` tenha as permissões `contents: write` para que o GitHub permita a criação da página de release automaticamente.
+
+## 6. Commits a partir de versões
+
+Listar commits a partir de alguma versão. (para os PRs).
+
+Comando: `git log <versao>..HEAD --oneline`
+
+Exemplo: `git log v1.2.3.1-alpha..HEAD --oneline`
