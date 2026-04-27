@@ -21,8 +21,6 @@ O aplicativo opera em dois modos:
 1. **Modo Configuração (Launcher)**: Uma interface de configuração para selecionar câmeras, ajustar parâmetros e iniciar widgets
 2. **Modo Widget**: A sobreposição de câmera flutuante com controles interativos
 
----
-
 ## Screenshots
 
 | Configuração Launcher             | Widget Flutuante                      |
@@ -32,8 +30,6 @@ O aplicativo opera em dois modos:
 | Modo Multi-Câmera                           |
 |:-------------------------------------------:|
 | ![multi-cam](assets/pipcammodemulticam.png) |
-
----
 
 ## Funcionalidades
 
@@ -88,7 +84,7 @@ O projeto segue uma arquitetura inspirada em MVC com separação clara entre ló
 pip-cam/
 ├── main.py                      # Ponto de entrada do aplicativo
 ├── pyproject.toml               # Metadados do projeto e dependências
-├── pipcamwin.spec               # Especificação do PyInstaller
+├── inno-setup-action.iss        # Script para gerar instalador Windows
 ├── classes/
 │   ├── core/                    # Camada de lógica de negócio
 │   │   ├── config_manager.py    # Singleton de configuração com I/O debounced
@@ -97,8 +93,8 @@ pip-cam/
 │   │   ├── audio_analyzer.py    # Análise de RMS de áudio em tempo real
 │   │   └── hotkey_manager.py    # Atalhos de teclado globais
 │   ├── views/                   # Widgets principais de UI
-│   │   ├── launcher.py          # Janela de configuração (741 LOC)
-│   │   └── pip_widget.py        # Widget de câmera flutuante (434 LOC)
+│   │   ├── launcher.py          # Janela de configuração
+│   │   └── pip_widget.py        # Widget de câmera flutuante
 │   ├── ui/                      # Componentes reutilizáveis de UI
 │   │   ├── floating_toolbar.py  # Botões de controle do overlay
 │   │   └── filter_dialogs.py    # Diálogos de filtragem de dispositivos
@@ -114,7 +110,7 @@ pip-cam/
 Todos os atalhos usam o modificador `Alt` e funcionam em todo o sistema, mesmo quando o aplicativo não está em foco.
 
 | Atalho    | Ação                                                   |
-|:---------:|--------------------------------------------------------|
+|:--------- | ------------------------------------------------------ |
 | `Alt + S` | Alternar visibilidade do widget (fade in/out)          |
 | `Alt + C` | Navegar pelas câmeras disponíveis                      |
 | `Alt + M` | Alternar mute do microfone                             |
@@ -185,17 +181,17 @@ O projeto inclui `inno-setup-action.iss` para criar um instalador Windows. Abra 
 
 ### Local de Armazenamento
 
-- **Windows**: `%APPDATA%/PiP_Cam/`
+As configurações do projeto são salvas em:  `%APPDATA%/PiP_Cam/` no Windows.
 
 ### Estrutura do Arquivo de Configuração (`pip_config.json`)
 
 ```json
 {
-    "border_color": "#4d6fc4",
-    "border_mode": "Cor Sólida",
-    "last_mode": "Círculo",
-    "last_camera_name": "USB Camera",
-    "use_avatar": false,
+    "border_color": "#4d6fc4", // default color
+    "border_mode": "Cor Sólida", // default mode
+    "last_mode": "Círculo", // default shape
+    "last_camera_name": "USB Camera", // default camera
+    "use_avatar": false, // default avatar
     "avatar_path": "C:\\Users\\...\\avatar.png",
     "multi_cam_mode": false,
     "hide_toolbar": false,

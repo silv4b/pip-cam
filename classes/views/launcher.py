@@ -203,16 +203,12 @@ class Launcher(QWidget):
         self.form.addRow("Foto (Alt+A):", avatar_layout)
 
         self.check_multi_cam = QCheckBox("Modo Multi-Câmeras (Abrir vários widgets)")
-        self.check_multi_cam.setMinimumHeight(30)
-        self.check_multi_cam.setStyleSheet("padding-top: 5px;")
         self.check_multi_cam.stateChanged.connect(self.save_current_launcher_settings)
         self.form.addRow("", self.check_multi_cam)
 
         self.check_hide_toolbar = QCheckBox(
             "Ocultar controles flutuantes (Usar apenas atalhos)"
         )
-        self.check_hide_toolbar.setMinimumHeight(30)
-        self.check_hide_toolbar.setStyleSheet("padding-top: 5px;")
         self.check_hide_toolbar.stateChanged.connect(
             self.save_current_launcher_settings
         )
