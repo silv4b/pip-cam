@@ -2,6 +2,12 @@ import json
 import sys
 import os
 import shutil
+import platform
+
+IS_WINDOWS = os.name == "nt"
+IS_LINUX = os.name == "posix" and platform.system() in ("Linux", "Darwin")
+IS_MACOS = platform.system() == "Darwin"
+SYSTEM = platform.system()
 
 # Configurações de diretórios centralizados
 if os.name == "nt":
