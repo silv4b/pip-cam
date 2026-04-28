@@ -42,6 +42,9 @@ class HotkeyManager:
             keyboard.add_hotkey(
                 "alt+d", lambda: self.signals.toggle_border_mode_signal.emit()
             )
+            keyboard.add_hotkey(
+                "alt+b", lambda: self.signals.toggle_border_visibility_signal.emit()
+            )
 
             print("Atalhos globais inicializados com sucesso.")
         except Exception as e:

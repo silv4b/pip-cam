@@ -51,14 +51,20 @@ class VideoProcessor:
 
     @staticmethod
     def create_masked_pixmap(
-        image_or_pixmap, target_w, target_h, mode, border_color, border_width=6.0
+        image_or_pixmap,
+        target_w,
+        target_h,
+        mode,
+        border_color,
+        border_width=6.0,
+        show_border=True,
     ):
         out_pixmap = QPixmap(target_w, target_h)
         out_pixmap.fill(Qt.GlobalColor.transparent)
         painter = QPainter(out_pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        clip_margin = 2.0
+        clip_margin = 3.0
         path = QPainterPath()
         if mode == "Círculo":
             path.addEllipse(
@@ -103,10 +109,11 @@ class VideoProcessor:
         painter.setClipping(False)
 
         # Borda
-        pen = QPen(QColor(border_color))
-        pen.setWidthF(border_width)
-        painter.setPen(pen)
-        painter.drawPath(path)
+        if show_border:
+            pen = QPen(QColor(border_color))
+            pen.setWidthF(border_width)
+            painter.setPen(pen)
+            painter.drawPath(path)
 
         painter.end()
         return out_pixmap

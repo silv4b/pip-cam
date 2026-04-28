@@ -121,6 +121,12 @@ class Launcher(QWidget):
         )
         self.form.addRow("Comportamento:", self.border_mode_combo)
 
+        self.check_show_border = QCheckBox("Exibir Borda (Alt+B para Alternar)")
+        self.check_show_border.setChecked(True)
+        self.check_show_border.setMinimumHeight(30)
+        self.check_show_border.stateChanged.connect(self.save_current_launcher_settings)
+        self.form.addRow("", self.check_show_border)
+
         self.color_container = QWidget()
         color_layout = QHBoxLayout(self.color_container)
         color_layout.setContentsMargins(0, 2, 0, 2)
@@ -449,6 +455,9 @@ class Launcher(QWidget):
         self.config_manager.set_global(
             "border_mode", self.border_mode_combo.currentText()
         )
+        self.config_manager.set_global(
+            "show_border", self.check_show_border.isChecked()
+        )
         self.config_manager.set_global("last_camera_name", self.cam_combo.currentText())
         self.config_manager.set_global("last_mode", self.mode_combo.currentText())
 
@@ -716,6 +725,7 @@ class Launcher(QWidget):
             ),
             self.check_mic_muted.isChecked(),
             self.check_hide_toolbar.isChecked(),
+            self.check_show_border.isChecked(),
         )
 
         # Conecta o sinal de fechamento para remover da lista capturando o objeto correto

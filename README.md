@@ -117,6 +117,7 @@ Todos os atalhos usam o modificador `Alt` e funcionam em todo o sistema, mesmo q
 | `Alt + A` | Alternar modo avatar (câmera ↔ foto de perfil)         |
 | `Alt + F` | Navegar pelas formas geométricas (Círculo → 1:1 → 4:3) |
 | `Alt + D` | Alternar modo da borda (Cor Sólida ↔ Reativo ao Áudio) |
+| `Alt + B` | Exibir/Ocultar borda                                   |
 | `Alt + +` | Aumentar tamanho do widget (+20px)                     |
 | `Alt + -` | Diminuir tamanho do widget (-20px)                     |
 | `Esc`     | Fechar widget e retornar ao launcher                   |
@@ -155,6 +156,43 @@ uv sync
 # Execute o aplicativo
 uv run main.py
 ```
+
+### Hotkeys Globais no Linux
+
+Os atalhos globais de teclado requerem permissão de acesso ao dispositivo de input. No Linux, há duas maneiras:
+
+**Método 1 - Adicionar ao grupo input (Recomendado):**
+
+```bash
+# Adicione seu usuário ao grupo input
+sudo usermod -aG input $USER
+
+# Faça logout e login para aplicar
+# (ou reinicie o computador)
+```
+
+**Método 2 - Regra udev (Alternativa):**
+
+Crie o arquivo `/etc/udev/rules.d/99-pipcam-input.rules`:
+
+```bash
+sudo nano /etc/udev/rules.d/99-pipcam-input.rules
+```
+
+Adicione:
+
+```rules
+KERNEL=="event*", GROUP="input", MODE="0660"
+```
+
+Recarregue as regras:
+
+```bash
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+> **Nota**: Sem essa permissão, os atalhos globais não funcionarão. Você poderá controlar o widget apenas via clique na barra de ferramentas.
 
 ## Compilação a partir do Código Fonte
 

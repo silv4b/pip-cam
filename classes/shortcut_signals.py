@@ -9,3 +9,4 @@ class ShortcutSignals(QObject):
     toggle_camera_signal = pyqtSignal()
     toggle_format_signal = pyqtSignal()
     toggle_border_mode_signal = pyqtSignal()
+    toggle_border_visibility_signal = pyqtSignal()

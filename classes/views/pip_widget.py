@@ -27,6 +27,7 @@ class PipCameraWidget(QWidget):
         mic_device=-1,
         starts_muted=False,
         hide_toolbar=False,
+        show_border=True,
     ):
         super().__init__()
         self.zoom = zoom
@@ -37,6 +38,7 @@ class PipCameraWidget(QWidget):
         self.border_mode = border_mode
         self.is_mic_muted = starts_muted
         self.hide_toolbar_flag = hide_toolbar
+        self.show_border = show_border
         self.config_manager = ConfigManager()
         self.audio_level = 0.0
         self.audio_sensitivity = self.config_manager.configs.get(
@@ -120,6 +122,7 @@ class PipCameraWidget(QWidget):
             mgr.toggle_camera_signal.connect(self.toggle_camera)
             mgr.toggle_format_signal.connect(self.toggle_format)
             mgr.toggle_border_mode_signal.connect(self.toggle_border_mode)
+            mgr.toggle_border_visibility_signal.connect(self.toggle_border_visibility)
 
     def _on_audio_level_changed(self, level):
         self.audio_level = level
@@ -277,6 +280,9 @@ class PipCameraWidget(QWidget):
         self.config_manager.set_global("border_mode", self.border_mode)
         print(f"Modo de borda alterado para: {self.border_mode}")
 
+    def toggle_border_visibility(self):
+        self.show_border = not self.show_border
+
     def toggle_visibility(self):
         if self.isVisible():
             # Antes de esconder, garantimos que a posição atual está salva no target_pos
@@ -355,6 +361,7 @@ class PipCameraWidget(QWidget):
                 self.curr_h,
                 self.mode,
                 self.current_border_color,
+                show_border=self.show_border,
             )
         else:
             ret, frame = self.cap.read()
@@ -364,7 +371,12 @@ class PipCameraWidget(QWidget):
                 frame, self.zoom, self.pan_x, self.pan_y, self.curr_w, self.curr_h
             )
             pixmap = VideoProcessor.create_masked_pixmap(
-                qimage, self.curr_w, self.curr_h, self.mode, self.current_border_color
+                qimage,
+                self.curr_w,
+                self.curr_h,
+                self.mode,
+                self.current_border_color,
+                show_border=self.show_border,
             )
 
         self.video_label.setPixmap(pixmap)
@@ -419,6 +431,9 @@ class PipCameraWidget(QWidget):
                     mgr.toggle_camera_signal.disconnect(self.toggle_camera)
                     mgr.toggle_format_signal.disconnect(self.toggle_format)
                     mgr.toggle_border_mode_signal.disconnect(self.toggle_border_mode)
+                    mgr.toggle_border_visibility_signal.disconnect(
+                        self.toggle_border_visibility
+                    )
                 except:
                     pass
 
