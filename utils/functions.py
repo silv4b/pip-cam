@@ -4,12 +4,17 @@ import os
 import shutil
 import platform
 
+# ==========================================
+# Constantes de Plataforma
+# ==========================================
 IS_WINDOWS = os.name == "nt"
 IS_LINUX = os.name == "posix" and platform.system() in ("Linux", "Darwin")
 IS_MACOS = platform.system() == "Darwin"
 SYSTEM = platform.system()
 
-# Configurações de diretórios centralizados
+# ==========================================
+# Configurações de Diretórios Centralizados
+# ==========================================
 if os.name == "nt":
     # No Windows, usamos a pasta AppData do usuário
     APPDATA = os.environ.get("APPDATA", os.path.expanduser("~\\AppData\\Roaming"))
@@ -36,8 +41,14 @@ AVATAR_DIR = os.path.join(BASE_DIR, "avatars")
 os.makedirs(AVATAR_DIR, exist_ok=True)
 
 
-# Migração: Se existirem arquivos na raiz, move para a pasta centralizada
+# ==========================================
+# Migração de Versões Antigas
+# ==========================================
 def _migrate_old_files():
+    """
+    Migra arquivos de configuração e avatares antigos do diretório local 
+    para o novo diretório centralizado em AppData ou ~/.pip_cam_config.
+    """
     try:
         migrated = False
         # Move config
@@ -80,9 +91,18 @@ def _migrate_old_files():
         print(f"Erro na migração: {e}")
 
 
-_migrate_old_files()
+def init_app_environment():
+    """
+    Inicializa as pastas e variáveis do sistema, executando migrações se necessário.
+    Garante que os diretórios de configuração e avatares existam.
+    """
+    os.makedirs(AVATAR_DIR, exist_ok=True)
+    _migrate_old_files()
 
 
+# ==========================================
+# Configurações Padrão
+# ==========================================
 DEFAULT_CONFIGS = {
     "border_color": "#4d6fc4",
     "border_mode": "Cor Sólida",
@@ -101,8 +121,17 @@ DEFAULT_CONFIGS = {
 }
 
 
+# ==========================================
+# Operações de I/O
+# ==========================================
 def load_all_configs():
-    """Carrega as configurações do JSON, criando o arquivo com padrões se não existir."""
+    """
+    Carrega as configurações do JSON. 
+    Se o arquivo não existir ou for inválido, cria/retorna as configurações padrão.
+    
+    Returns:
+        dict: Dicionário contendo todas as configurações da aplicação.
+    """
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r") as f:
@@ -119,7 +148,12 @@ def load_all_configs():
 
 
 def save_all_configs(configs):
-    """Salva o dicionário completo de configurações no disco."""
+    """
+    Salva o dicionário completo de configurações no disco em formato JSON.
+    
+    Args:
+        configs (dict): Dicionário com as configurações a serem salvas.
+    """
     try:
         # Garante que a pasta existe antes de tentar salvar o arquivo
         os.makedirs(BASE_DIR, exist_ok=True)
@@ -130,7 +164,16 @@ def save_all_configs(configs):
 
 
 def resource_path(relative_path):
-    """Retorna o caminho absoluto para o recurso, funcionando em Dev e no PyInstaller"""
+    """
+    Retorna o caminho absoluto para o recurso, funcionando tanto no ambiente de 
+    desenvolvimento quanto no executável empacotado pelo PyInstaller.
+    
+    Args:
+        relative_path (str): Caminho relativo do recurso (ex: 'assets/icon.png').
+        
+    Returns:
+        str: Caminho absoluto para o recurso.
+    """
     try:
         # O PyInstaller cria uma pasta temporária e armazena o caminho em _MEIPASS
         base_path = sys._MEIPASS  # type: ignore

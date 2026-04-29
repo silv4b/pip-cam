@@ -1,4 +1,3 @@
-import cv2
 from PyQt6.QtWidgets import QLabel, QWidget
 from PyQt6.QtCore import QTimer, Qt, QPoint
 from PyQt6.QtGui import QPixmap
@@ -8,6 +7,12 @@ from classes.core.config_manager import ConfigManager
 
 
 class PipCameraWidget(QWidget):
+    """
+    O Widget principal da aplicação (A bolinha da câmera).
+    É uma janela sem bordas (FramelessWindowHint) que fica sempre no topo,
+    exibindo o processamento em tempo real do feed da câmera com máscaras.
+    """
+
     def __init__(
         self,
         size_val,
@@ -29,7 +34,34 @@ class PipCameraWidget(QWidget):
         hide_toolbar=False,
         show_border=True,
     ):
+        """
+        Inicializa o widget flutuante da câmera.
+        
+        Args:
+            size_val (int): Tamanho base da janela em pixels.
+            cam_index (int): Índice da câmera do sistema a ser aberta.
+            launcher (Launcher): Referência para a janela de configurações principal.
+            mode (str): O formato inicial da máscara (Círculo, Quadrado, etc).
+            mode_key (str): Chave usada para salvar as configurações no JSON.
+            pos_x (int): Posição inicial X na tela.
+            pos_y (int): Posição inicial Y na tela.
+            zoom (int): Nível de zoom (100 a 500).
+            pan_x (int): Posição horizontal do recorte do zoom.
+            pan_y (int): Posição vertical do recorte do zoom.
+            border_color (str): Cor inicial da borda.
+            avatar_path (str): Caminho para a imagem de avatar (se existir).
+            use_avatar_default (bool): Se deve iniciar exibindo o avatar ao invés da câmera.
+            border_mode (str): Modo da borda ("Cor Sólida" ou "Sinalizador de Áudio").
+            mic_device (int): Índice do dispositivo de microfone selecionado.
+            starts_muted (bool): Se o avatar deve iniciar com indicação de mutado.
+            hide_toolbar (bool): Se a barra flutuante de ferramentas deve estar desabilitada.
+            show_border (bool): Se a borda deve ser desenhada ou não.
+        """
         super().__init__()
+
+        # ==========================================
+        # Sessão de Inicialização de Estado
+        # ==========================================
         self.zoom = zoom
         self.border_color = border_color
         self.current_border_color = border_color
@@ -40,13 +72,17 @@ class PipCameraWidget(QWidget):
         self.hide_toolbar_flag = hide_toolbar
         self.show_border = show_border
         self.config_manager = ConfigManager()
+        
+        # Estado do áudio
         self.audio_level = 0.0
-        self.audio_sensitivity = self.config_manager.configs.get(
-            "audio_sensitivity", 2.0
-        )
+        self.audio_sensitivity = self.config_manager.configs.get("audio_sensitivity", 2.0)
         self.audio_threshold = self.config_manager.configs.get("audio_threshold", 0.01)
         self.mic_device = mic_device
         self.audio_analyzer = None
+
+        # ==========================================
+        # Sessão de Configuração de Módulos (Áudio e Avatar)
+        # ==========================================
         if self.border_mode == "Sinalizador de Áudio" and mic_device != -1:
             from classes.core.audio_analyzer import AudioAnalyzer
 
@@ -75,6 +111,9 @@ class PipCameraWidget(QWidget):
         # Guardamos a posição desejada de forma absoluta
         self.target_pos = QPoint(pos_x, pos_y)
 
+        # ==========================================
+        # Sessão de Configuração da Janela (Window Flags)
+        # ==========================================
         self.setWindowFlags(
             Qt.WindowType.WindowStaysOnTopHint
             | Qt.WindowType.FramelessWindowHint
@@ -90,6 +129,9 @@ class PipCameraWidget(QWidget):
         self.video_label = QLabel(self)
         self.video_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
+        # ==========================================
+        # Sessão de Toolbar e Sinais
+        # ==========================================
         self.controls_container = FloatingToolbar(self)
         self.controls_container.close_requested.connect(self.close_and_return)
         self.controls_container.resize_requested.connect(self.resize_widget)
@@ -102,7 +144,11 @@ class PipCameraWidget(QWidget):
         self.controls_container.hide()
         self.update_ui_geometry()
 
-        self.cap = cv2.VideoCapture(self.cam_index, cv2.CAP_DSHOW)
+        # ==========================================
+        # Sessão de Inicialização de Câmera e Timers
+        # ==========================================
+        from classes.core.device_manager import DeviceManager
+        self.cap = DeviceManager.open_camera(self.cam_index)
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
         self.timer.start(30)
@@ -112,7 +158,7 @@ class PipCameraWidget(QWidget):
         self.resume_timer.setSingleShot(True)
         self.resume_timer.timeout.connect(self.resume_preview)
 
-        # Conecta aos sinais globais do launcher
+        # Conecta aos sinais globais do launcher gerados pelo HotkeyManager
         if hasattr(self.launcher, "shortcut_manager"):
             mgr = self.launcher.shortcut_manager
             mgr.resize_signal.connect(self.resize_widget)
@@ -124,53 +170,47 @@ class PipCameraWidget(QWidget):
             mgr.toggle_border_mode_signal.connect(self.toggle_border_mode)
             mgr.toggle_border_visibility_signal.connect(self.toggle_border_visibility)
 
+    # ==========================================
+    # Sessão de Ações (Toggles e Controles)
+    # ==========================================
+
     def _on_audio_level_changed(self, level):
+        """Atualiza a variável local de nível de áudio ao receber do Analyzer."""
         self.audio_level = level
 
     def toggle_avatar(self):
+        """Alterna a visualização entre a Câmera e a Imagem de Avatar."""
         if self.avatar_pixmap and not self.avatar_pixmap.isNull():
             self.use_avatar = not self.use_avatar
             self.store_current_state()
 
     def toggle_mic(self):
+        """Muta/Desmuta visualmente o microfone, forçando a borda a ficar vermelha."""
         self.is_mic_muted = not self.is_mic_muted
         self.store_current_state()
 
     def toggle_camera(self):
+        """
+        Pula para a próxima câmera ativa disponível no sistema, 
+        ignorando as que foram filtradas nas configurações.
+        """
         try:
             from classes.core.device_manager import DeviceManager
 
-            all_devices = DeviceManager.get_cameras()
             configs = self.config_manager.reload()
             ignored = configs.get("ignored_cameras", [])
 
-            # Filtra as câmeras válidas (que não estão na lista de ignoradas)
-            devices = [d for d in all_devices if d not in ignored]
+            new_index, new_cam_name = DeviceManager.get_next_available_camera(
+                self.cam_index, ignored
+            )
 
-            if not devices:
+            if new_index == -1:
                 print("Nenhuma câmera disponível (todas filtradas ou desconectadas).")
                 return
 
-            # Se houver mais de uma câmera disponível, ou se a atual não estiver na lista filtrada
-            # (ocorre se acabamos de ignorar a câmera que estava ativa)
-            current_cam_name = (
-                all_devices[self.cam_index] if self.cam_index < len(all_devices) else ""
-            )
-
-            if len(devices) > 1 or (
-                len(devices) == 1 and current_cam_name not in devices
-            ):
+            if new_index != self.cam_index:
                 # Salva o estado atual da câmera que estamos saindo
                 self.store_current_state()
-
-                try:
-                    current_idx_in_filtered = devices.index(current_cam_name)
-                    next_idx_in_filtered = (current_idx_in_filtered + 1) % len(devices)
-                except ValueError:
-                    next_idx_in_filtered = 0
-
-                new_cam_name = devices[next_idx_in_filtered]
-                new_index = DeviceManager.get_camera_index(new_cam_name)
 
                 self.cam_index = new_index
 
@@ -182,9 +222,9 @@ class PipCameraWidget(QWidget):
 
                 time.sleep(0.1)  # Breve pausa para o hardware liberar a lente
 
-                self.cap = cv2.VideoCapture(self.cam_index, cv2.CAP_DSHOW)
+                self.cap = DeviceManager.open_camera(self.cam_index)
 
-                # Limpa buffer inicial
+                # Limpa buffer inicial da câmera
                 for _ in range(5):
                     self.cap.grab()
 
@@ -220,7 +260,7 @@ class PipCameraWidget(QWidget):
             print(f"Erro ao trocar câmera: {e}")
 
     def toggle_format(self):
-        """Alterna entre os formatos disponíveis: Círculo, 1:1, 4:3."""
+        """Alterna entre os formatos disponíveis da janela: Círculo, 1:1, 4:3."""
         modes = ["Círculo", "1:1 (Quadrado)", "4:3 (Retângulo)"]
         try:
             current_idx = modes.index(self.mode)
@@ -260,7 +300,7 @@ class PipCameraWidget(QWidget):
         print(f"Formato alterado para: {self.mode}")
 
     def toggle_border_mode(self):
-        """Alterna entre Cor Sólida e Sinalizador de Áudio (Modo Discord)."""
+        """Alterna entre 'Cor Sólida' e 'Sinalizador de Áudio' (Modo Discord)."""
         if self.border_mode == "Cor Sólida":
             self.border_mode = "Sinalizador de Áudio"
             if not self.audio_analyzer and self.mic_device != -1:
@@ -281,9 +321,11 @@ class PipCameraWidget(QWidget):
         print(f"Modo de borda alterado para: {self.border_mode}")
 
     def toggle_border_visibility(self):
+        """Ativa ou desativa a renderização visual da borda."""
         self.show_border = not self.show_border
 
     def toggle_visibility(self):
+        """Esconde ou mostra a janela inteira, respeitando posições na tela."""
         if self.isVisible():
             # Antes de esconder, garantimos que a posição atual está salva no target_pos
             self.target_pos = self.pos()
@@ -294,7 +336,12 @@ class PipCameraWidget(QWidget):
             self.move(self.target_pos)
             self.activateWindow()
 
+    # ==========================================
+    # Sessão de Geometria e Eventos
+    # ==========================================
+
     def showEvent(self, event):
+        """Gatilho acionado assim que a janela é exibida."""
         super().showEvent(event)
         self.move(self.target_pos)
         self.activateWindow()
@@ -302,6 +349,10 @@ class PipCameraWidget(QWidget):
         self._initializing = False
 
     def update_ui_geometry(self):
+        """
+        Recalcula as proporções reais da janela com base no modo (Círculo, Retângulo)
+        e reposiciona a Toolbar no centro exato.
+        """
         h_ratio = 0.75 if "4:3" in self.mode else 1.0
         self.curr_w = self.base_width
         self.curr_h = int(self.base_width * h_ratio)
@@ -322,12 +373,16 @@ class PipCameraWidget(QWidget):
             self.store_current_state()
 
     def resize_widget(self, delta):
+        """Aumenta ou diminui a janela respeitando os limites mínimo e máximo."""
         new_size = self.base_width + delta
         if 200 <= new_size <= 800:
             self.base_width = new_size
             self.update_ui_geometry()
 
     def store_current_state(self):
+        """
+        Persiste no ConfigManager o estado atual do widget (Posição, tamanho, pan).
+        """
         # Ignora apenas se a janela ainda não foi posicionada (coordenadas negativas)
         if self.x() < 0 or self.y() < 0:
             return
@@ -343,11 +398,22 @@ class PipCameraWidget(QWidget):
         )
         self.config_manager.set_global("use_avatar", self.use_avatar)
 
+    # ==========================================
+    # Sessão de Processamento Gráfico
+    # ==========================================
+
     def update_frame(self):
+        """
+        Loop de renderização principal chamado pelo QTimer a cada ~30ms.
+        Pega o novo frame (ou avatar), processa as cores de borda (áudio/mudo),
+        gera as máscaras e exibe no QLabel.
+        """
+        # Lógica visual para modo de áudio
         if self.border_mode == "Sinalizador de Áudio":
             if self.is_mic_muted:
-                self.current_border_color = "#e74c3c"
+                self.current_border_color = "#e74c3c" # Vermelho
             else:
+                # Verde vivo se passar o threshold, cinza escuro caso contrário
                 self.current_border_color = (
                     "#2ecc71" if self.audio_level > self.audio_threshold else "#2d2d2d"
                 )
@@ -382,25 +448,33 @@ class PipCameraWidget(QWidget):
         self.video_label.setPixmap(pixmap)
 
     def resume_preview(self):
-        """Retoma o processamento de frames após o movimento."""
+        """Retoma o processamento de frames após o movimento (para evitar stutters)."""
         if self.isVisible() and self.cap:
             self.timer.start(30)
 
+    # ==========================================
+    # Sessão de Controles de Mouse / Teclado
+    # ==========================================
+
     def enterEvent(self, event):
+        """Mostra a Toolbar quando o mouse entra."""
         if not self.hide_toolbar_flag:
             self.controls_container.show()
 
     def leaveEvent(self, event):
+        """Esconde a Toolbar quando o mouse sai."""
         if not self.hide_toolbar_flag:
             self.controls_container.hide()
 
     def mousePressEvent(self, event):
+        """Inicia o movimento (drag) do widget."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.old_pos = event.globalPosition().toPoint()
 
     def mouseMoveEvent(self, event):
+        """Atualiza a posição da janela durante o arraste."""
         if self.old_pos:
-            # Pausa o processamento durante o arrasto
+            # Pausa o processamento durante o arrasto para evitar lags gráficos no SO
             if self.timer.isActive():
                 self.timer.stop()
 
@@ -409,6 +483,7 @@ class PipCameraWidget(QWidget):
             self.old_pos = event.globalPosition().toPoint()
 
     def mouseReleaseEvent(self, event):
+        """Encerra o drag e salva a nova posição final."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.old_pos = None
             self.resume_timer.start(50)  # Retomada com 50ms de delay
@@ -418,7 +493,15 @@ class PipCameraWidget(QWidget):
         if event.key() == Qt.Key.Key_Escape:
             self.close_and_return()
 
+    # ==========================================
+    # Sessão de Encerramento
+    # ==========================================
+
     def close_and_return(self):
+        """
+        Fecha o widget atual limpando recursos e, se aplicável,
+        restaura o Launcher.
+        """
         try:
             # Desconecta os sinais globais para não receber ordens após fechar
             if hasattr(self.launcher, "shortcut_manager"):
@@ -444,7 +527,7 @@ class PipCameraWidget(QWidget):
                 self.cap.release()
 
             self.close()
-            # Se não estiver no modo multi-câmeras, volta para o Launcher
+            # Se não estiver no modo multi-câmeras, volta para o Launcher principal
             if not self.config_manager.get("multi_cam_mode", False):
                 self.launcher.refresh_launcher_ui()
                 self.launcher.show()

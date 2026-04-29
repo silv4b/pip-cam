@@ -25,16 +25,31 @@ from classes.core.config_manager import ConfigManager
 
 
 class Launcher(QWidget):
+    """
+    Janela Principal de Configuração (Setup).
+    É o ponto de entrada da interface onde o usuário define as opções de câmera,
+    microfone, formato, tamanho e avatares antes de instanciar o PipCameraWidget.
+    """
+
     def __init__(self):
+        """Inicializa a interface do Launcher e configura os layouts principais."""
         super().__init__()
+
+        # ==========================================
+        # Sessão de Configuração de Janela
+        # ==========================================
         logo_path = resource_path("assets/pipcam_icon.ico")
         self.setWindowIcon(QIcon(logo_path))
         self.setWindowTitle("PiP Cam Setup")
         self.setFixedSize(440, 810)
 
+        # ==========================================
+        # Sessão de Gerenciamento de Estado
+        # ==========================================
         self.config_manager = ConfigManager()
         self.all_configs = self.config_manager.configs
         self.preview_cap = None
+
         self.preview_timer = QTimer()
         self.preview_timer.timeout.connect(self.update_preview)
 
@@ -44,10 +59,16 @@ class Launcher(QWidget):
         self.resume_timer.timeout.connect(self.resume_preview)
 
         self.active_pips = []
+
+        # ==========================================
+        # Sessão de Construção da Interface (UI)
+        # ==========================================
         layout = QVBoxLayout()
         self.form = QFormLayout()
         self.form.setVerticalSpacing(12)
         self.form.setSpacing(10)
+
+        # --- Câmera e Filtros ---
         cam_layout = QHBoxLayout()
         self.cam_combo = QComboBox()
         self.cam_combo.setFixedHeight(26)
@@ -59,18 +80,22 @@ class Launcher(QWidget):
         cam_layout.addWidget(self.cam_combo)
         cam_layout.addWidget(self.btn_filter)
         self.form.addRow("Câmera:", cam_layout)
+
+        # --- Formato e Tamanho ---
         self.mode_combo = QComboBox()
         self.mode_combo.setFixedHeight(26)
         self.mode_combo.addItems(["Círculo", "1:1 (Quadrado)", "4:3 (Retângulo)"])
         self.mode_combo.currentTextChanged.connect(self.apply_mode_preview)
         self.mode_combo.currentTextChanged.connect(self.save_current_launcher_settings)
         self.form.addRow("Formato:", self.mode_combo)
+
         self.size_input = QLineEdit()
         self.size_input.setFixedHeight(26)
         self.size_input.setValidator(QIntValidator(100, 2000, self))
         self.size_input.editingFinished.connect(self.save_current_launcher_settings)
         self.form.addRow("Largura Inicial (px):", self.size_input)
 
+        # --- Zoom ---
         zoom_layout = QHBoxLayout()
         self.zoom_slider = QSlider(Qt.Orientation.Horizontal)
         self.zoom_slider.setMinimum(100)
@@ -84,6 +109,7 @@ class Launcher(QWidget):
         zoom_layout.addWidget(self.zoom_label)
         self.form.addRow("Zoom / Corte:", zoom_layout)
 
+        # --- Alinhamento (Pan Y) ---
         pan_layout = QHBoxLayout()
         self.pan_slider = QSlider(Qt.Orientation.Horizontal)
         self.pan_slider.setMinimum(0)
@@ -98,6 +124,7 @@ class Launcher(QWidget):
         pan_layout.addWidget(self.pan_label)
         self.form.addRow("Alinhamento Y:", pan_layout)
 
+        # --- Alinhamento (Pan X) ---
         pan_x_layout = QHBoxLayout()
         self.pan_x_slider = QSlider(Qt.Orientation.Horizontal)
         self.pan_x_slider.setMinimum(0)
@@ -112,6 +139,7 @@ class Launcher(QWidget):
         pan_x_layout.addWidget(self.pan_x_label)
         self.form.addRow("Alinhamento X:", pan_x_layout)
 
+        # --- Comportamento da Borda ---
         self.border_mode_combo = QComboBox()
         self.border_mode_combo.setFixedHeight(26)
         self.border_mode_combo.addItems(["Cor Sólida", "Sinalizador de Áudio"])
@@ -127,6 +155,7 @@ class Launcher(QWidget):
         self.check_show_border.stateChanged.connect(self.save_current_launcher_settings)
         self.form.addRow("", self.check_show_border)
 
+        # --- Cor da Borda ---
         self.color_container = QWidget()
         color_layout = QHBoxLayout(self.color_container)
         color_layout.setContentsMargins(0, 2, 0, 2)
@@ -142,7 +171,7 @@ class Launcher(QWidget):
         color_layout.addWidget(self.btn_color)
         self.form.addRow("Cor da Borda:", self.color_container)
 
-        # Microfone Section
+        # --- Microfone ---
         self.mic_label = QLabel("Microfone:")
         mic_top_layout = QHBoxLayout()
         self.mic_combo = QComboBox()
@@ -164,6 +193,7 @@ class Launcher(QWidget):
         self.form.addRow(self.mic_label, mic_top_layout)
         self.form.addRow("", self.check_mic_muted)
 
+        # --- Sensibilidade de Áudio ---
         audio_sensitivity_layout = QHBoxLayout()
         self.audio_sensitivity_slider = QSlider(Qt.Orientation.Horizontal)
         self.audio_sensitivity_slider.setMinimum(1)
@@ -186,6 +216,7 @@ class Launcher(QWidget):
         self.audio_sensitivity_container.setLayout(audio_sensitivity_layout)
         self.form.addRow("Sensibilidade Áudio:", self.audio_sensitivity_container)
 
+        # --- Avatar ---
         avatar_layout = QHBoxLayout()
         self.avatar_input = QLineEdit()
         self.avatar_input.setFixedHeight(26)
@@ -208,6 +239,7 @@ class Launcher(QWidget):
         avatar_layout.addWidget(self.btn_preview_avatar)
         self.form.addRow("Foto (Alt+A):", avatar_layout)
 
+        # --- Checkboxes Globais ---
         self.check_multi_cam = QCheckBox("Modo Multi-Câmeras (Abrir vários widgets)")
         self.check_multi_cam.stateChanged.connect(self.save_current_launcher_settings)
         self.form.addRow("", self.check_multi_cam)
@@ -220,12 +252,13 @@ class Launcher(QWidget):
         )
         self.form.addRow("", self.check_hide_toolbar)
 
-        # Preview do Setup
+        # ==========================================
+        # Sessão de Preview e Ações Finais
+        # ==========================================
         self.preview_label = QLabel()
         self.preview_label.setFixedSize(350, 260)
         self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Botões de Ação Inferiores
         actions_layout = QHBoxLayout()
         actions_layout.setSpacing(10)
 
@@ -247,6 +280,7 @@ class Launcher(QWidget):
         actions_layout.addWidget(self.btn_start, 7)  # Proporção 7 de 8
         actions_layout.addWidget(self.btn_reset, 1)  # Proporção 1 de 8
 
+        # --- Montagem do Layout Principal ---
         layout.addLayout(self.form)
         layout.addSpacing(20)
         layout.addWidget(self.preview_label, alignment=Qt.AlignmentFlag.AlignCenter)
@@ -254,6 +288,9 @@ class Launcher(QWidget):
         layout.addLayout(actions_layout)
         self.setLayout(layout)
 
+        # ==========================================
+        # Conexões e Start Final
+        # ==========================================
         self.cam_combo.currentIndexChanged.connect(self.restart_preview)
         self.cam_combo.currentIndexChanged.connect(self.apply_mode_preview)
         self.cam_combo.currentIndexChanged.connect(self.save_current_launcher_settings)
@@ -261,14 +298,30 @@ class Launcher(QWidget):
         self.refresh_launcher_ui()
         self.init_global_hotkeys()
 
+    # ==========================================
+    # Sessão de Atalhos Globais
+    # ==========================================
+
     def init_global_hotkeys(self):
+        """
+        Inicializa o gerenciador de atalhos de teclado (HotkeyManager)
+        e o conecta aos sinais do sistema.
+        """
         from classes.core.hotkey_manager import HotkeyManager
 
         self.hotkey_manager = HotkeyManager()
         self.hotkey_manager.setup_global_hotkeys()
         self.shortcut_manager = self.hotkey_manager.signals
 
+    # ==========================================
+    # Sessão de Carga e Exibição na Interface
+    # ==========================================
+
     def refresh_launcher_ui(self):
+        """
+        Carrega as configurações salvas em disco e atualiza
+        os valores de todos os campos visuais do formulário.
+        """
         self.all_configs = self.config_manager.reload()
 
         # Bloqueia sinais para evitar loops de salvamento durante o carregamento
@@ -343,7 +396,12 @@ class Launcher(QWidget):
         self.toggle_border_config(border_mode)
         self.apply_mode_preview()
 
+    # ==========================================
+    # Sessão de Filtros e População de Dispositivos
+    # ==========================================
+
     def open_camera_filters(self):
+        """Abre a janela (modal) de filtros para seleção de câmeras a serem ignoradas."""
         try:
             cameras = DeviceManager.get_cameras()
             ignored = self.all_configs.get("ignored_cameras", [])
@@ -359,6 +417,7 @@ class Launcher(QWidget):
             print(f"Erro ao abrir filtros: {e}")
 
     def open_mic_filters(self):
+        """Abre a janela (modal) de filtros para seleção de microfones a serem ignorados."""
         try:
             mics = DeviceManager.get_microphones()
             ignored = self.all_configs.get("ignored_mics", [])
@@ -372,6 +431,36 @@ class Launcher(QWidget):
                 self.populate_mics()
         except Exception as e:
             print(f"Erro ao abrir filtros de mic: {e}")
+
+    def populate_cameras(self):
+        """Preenche o ComboBox de Câmeras baseando-se no hardware detectado."""
+        self.cam_combo.clear()
+        try:
+            all_devices = DeviceManager.get_cameras()
+            ignored = self.all_configs.get("ignored_cameras", [])
+            # Filtra as câmeras válidas (que não estão na lista de ignoradas)
+            for name in all_devices:
+                if name not in ignored:
+                    self.cam_combo.addItem(name, DeviceManager.get_camera_index(name))
+        except Exception as e:
+            print(f"Erro ao carregar câmeras: {e}")
+
+    def populate_mics(self):
+        """Preenche o ComboBox de Microfones baseando-se no hardware detectado."""
+        self.mic_combo.clear()
+        try:
+            all_mics = DeviceManager.get_microphones()
+            ignored = self.all_configs.get("ignored_mics", [])
+            for name in all_mics:
+                if name not in ignored:
+                    self.mic_combo.addItem(name, DeviceManager.get_mic_info(name))
+        except Exception as e:
+            print(f"Erro ao listar microfones: {e}")
+            self.mic_combo.addItem("Erro ao detectar", -1)
+
+    # ==========================================
+    # Sessão de Atualização Visual (Labels e Inputs)
+    # ==========================================
 
     def update_zoom_label(self, value):
         self.zoom_label.setText(f"{value / 100:.1f}x")
@@ -396,25 +485,15 @@ class Launcher(QWidget):
         self.audio_sensitivity_label.setText(f"{value / 1.0:.1f}x")
 
     def toggle_border_config(self, mode_text):
+        """Altera dinamicamente os inputs que ficam visíveis com base no modo da borda."""
         is_solid = mode_text == "Cor Sólida"
         self.form.setRowVisible(self.color_container, is_solid)
         self.form.setRowVisible(self.mic_label, not is_solid)
         self.form.setRowVisible(self.check_mic_muted, not is_solid)
         self.form.setRowVisible(self.audio_sensitivity_container, not is_solid)
 
-    def populate_mics(self):
-        self.mic_combo.clear()
-        try:
-            all_mics = DeviceManager.get_microphones()
-            ignored = self.all_configs.get("ignored_mics", [])
-            for name in all_mics:
-                if name not in ignored:
-                    self.mic_combo.addItem(name, DeviceManager.get_mic_info(name))
-        except Exception as e:
-            print(f"Erro ao listar microfones: {e}")
-            self.mic_combo.addItem("Erro ao detectar", -1)
-
     def choose_avatar(self):
+        """Abre o explorador de arquivos para a seleção de uma imagem."""
         file_path, _ = QFileDialog.getOpenFileName(
             self, "Escolha um Avatar", "", "Images (*.png *.jpg *.jpeg)"
         )
@@ -432,6 +511,7 @@ class Launcher(QWidget):
                 print(f"Erro ao copiar avatar: {e}")
 
     def choose_color(self):
+        """Abre o seletor visual de cores para a borda sólida."""
         current_color_str = self.color_input.text().strip() or "#4d6fc4"
         current_color = QColor(current_color_str)
         if not current_color.isValid():
@@ -441,7 +521,15 @@ class Launcher(QWidget):
             self.color_input.setText(color.name())
             self.save_current_launcher_settings()
 
+    # ==========================================
+    # Sessão de Persistência de Dados
+    # ==========================================
+
     def save_current_launcher_settings(self):
+        """
+        Lê todos os valores atuais dos campos da UI e salva no ConfigManager.
+        As configurações são separadas em globais e específicas de perfil (câmera/modo).
+        """
         # Salvamos configurações GLOBAIS independentemente de ter câmera selecionada
         border_color = self.color_input.text().strip() or "#4d6fc4"
         self.config_manager.set_global("border_color", border_color)
@@ -506,6 +594,7 @@ class Launcher(QWidget):
         self.all_configs = self.config_manager.configs
 
     def apply_mode_preview(self, *args):
+        """Ao trocar o modo ou a câmera, atualiza os sliders para refletir o perfil salvo."""
         self.all_configs = self.config_manager.reload()
         mode = self.mode_combo.currentText()
         cam_name = self.cam_combo.currentText()
@@ -514,8 +603,7 @@ class Launcher(QWidget):
         mode_cfg = self.config_manager.get_mode_config(mode_key, mode)
         self.size_input.setText(str(mode_cfg.get("size", "300")))
 
-        # O slider muda sem emitir sinais se definirmos via blockSignals opcionalmente,
-        # mas aqui setting o value atualiza o preview.
+        # O slider muda sem emitir sinais se definirmos via blockSignals
         self.zoom_slider.blockSignals(True)
         self.pan_slider.blockSignals(True)
         self.pan_x_slider.blockSignals(True)
@@ -526,17 +614,9 @@ class Launcher(QWidget):
         self.pan_slider.blockSignals(False)
         self.pan_x_slider.blockSignals(False)
 
-    def populate_cameras(self):
-        self.cam_combo.clear()
-        try:
-            all_devices = DeviceManager.get_cameras()
-            ignored = self.all_configs.get("ignored_cameras", [])
-            # Filtra as câmeras válidas (que não estão na lista de ignoradas)
-            for name in all_devices:
-                if name not in ignored:
-                    self.cam_combo.addItem(name, DeviceManager.get_camera_index(name))
-        except Exception as e:
-            print(f"Erro ao carregar câmeras: {e}")
+    # ==========================================
+    # Sessão de Eventos de Tela
+    # ==========================================
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -547,36 +627,41 @@ class Launcher(QWidget):
         self.stop_preview()
 
     def moveEvent(self, event):
-        """Pausa o preview enquanto a janela está sendo movida para garantir fluidez."""
+        """Pausa o preview enquanto a janela está sendo movida para garantir fluidez no SO."""
         super().moveEvent(event)
         if self.preview_timer.isActive():
             self.preview_timer.stop()
         # Debounce: retoma o preview 50ms após o último movimento
         self.resume_timer.start(50)
 
+    # ==========================================
+    # Sessão de Renderização do Preview (Câmera Base)
+    # ==========================================
+
     def resume_preview(self):
-        """Retoma apenas o timer, sem reconectar o hardware da câmera."""
+        """Retoma apenas o timer de tela, sem reconectar o hardware da câmera."""
         if self.isVisible() and self.preview_cap:
             self.preview_timer.start(30)
 
     def stop_preview(self):
+        """Pausa o fluxo da câmera e solta o recurso do OpenCV."""
         self.preview_timer.stop()
         if self.preview_cap is not None:
             self.preview_cap.release()
             self.preview_cap = None
 
     def restart_preview(self, *args):
+        """Reinicia o fluxo da câmera com os novos parâmetros selecionados."""
         if not self.isVisible():
             return
         self.stop_preview()
         cam_idx = self.cam_combo.currentData()
         if cam_idx is not None and cam_idx != -1:
-            import cv2
-
-            self.preview_cap = cv2.VideoCapture(cam_idx, cv2.CAP_DSHOW)
+            self.preview_cap = DeviceManager.open_camera(cam_idx)
             self.preview_timer.start(30)
 
     def update_preview(self):
+        """Loop acionado pelo Timer para atualizar o Label que exibe a câmera no Setup."""
         from classes.core.video_processor import VideoProcessor
 
         mode = self.mode_combo.currentText()
@@ -630,7 +715,12 @@ class Launcher(QWidget):
 
         self.preview_label.setPixmap(pixmap)
 
+    # ==========================================
+    # Sessão de Abertura e Fechamento (Instanciação de PiPs)
+    # ==========================================
+
     def remove_pip_from_list(self, pip_obj):
+        """Limpa as referências de widgets fechados."""
         if pip_obj in self.active_pips:
             print(f"Removendo camera {pip_obj.cam_index} da lista ativa.")
             self.active_pips.remove(pip_obj)
@@ -638,6 +728,10 @@ class Launcher(QWidget):
             self.restart_preview()
 
     def start_pip(self):
+        """
+        Encerra o preview e instancia um novo widget flutuante (PipCameraWidget).
+        O comportamento de fechar janelas antigas depende da opção Multi-Câmeras.
+        """
         is_multi = self.check_multi_cam.isChecked()
         cam_idx = self.cam_combo.currentData()
         if cam_idx == -1:
@@ -738,7 +832,12 @@ class Launcher(QWidget):
         if not is_multi:
             self.hide()
 
+    # ==========================================
+    # Sessão de Restauração (Factory Reset)
+    # ==========================================
+
     def confirm_reset_settings(self):
+        """Solicita confirmação antes de apagar todas as configurações salvas."""
         reply = QMessageBox.question(
             self,
             "Confirmar Reset",
@@ -751,6 +850,7 @@ class Launcher(QWidget):
             self.perform_reset()
 
     def perform_reset(self):
+        """Executa a limpeza das pastas de configuração e fecha o App."""
         try:
             from utils.functions import BASE_DIR
 

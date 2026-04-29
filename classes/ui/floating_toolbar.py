@@ -3,6 +3,14 @@ from PyQt6.QtCore import Qt, pyqtSignal
 
 
 class FloatingToolbar(QWidget):
+    """
+    Componente visual que flutua no centro da câmera (ao passar o mouse) 
+    para oferecer botões de controle rápidos ao usuário (fechar, mudar formato, câmera, etc).
+    """
+
+    # ==========================================
+    # Sessão de Definição de Sinais
+    # ==========================================
     # Definimos sinais para que o widget pai responda às ações
     close_requested = pyqtSignal()
     resize_requested = pyqtSignal(int)
@@ -13,11 +21,19 @@ class FloatingToolbar(QWidget):
     border_mode_toggled = pyqtSignal()
 
     def __init__(self, parent=None):
+        """
+        Inicializa e renderiza a barra de ferramentas flutuante.
+        
+        Args:
+            parent (QWidget, optional): O Widget pai (geralmente o PipCameraWidget).
+        """
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(5, 5, 5, 5)
 
-        # Row 1 (Ajustes de Janela e Fechar)
+        # ==========================================
+        # Sessão de Layout Superior (Ajustes Visuais)
+        # ==========================================
         self.row1 = QHBoxLayout()
         self.btn_minus = self._create_btn("➖")
         self.btn_plus = self._create_btn("➕")
@@ -30,7 +46,9 @@ class FloatingToolbar(QWidget):
         self.row1.addWidget(self.btn_format)
         self.row1.addWidget(self.btn_close)
 
-        # Row 2 (Captura e Áudio)
+        # ==========================================
+        # Sessão de Layout Inferior (Hardwares e Modos)
+        # ==========================================
         self.row2 = QHBoxLayout()
         self.btn_mic = self._create_btn("🎤")
         self.btn_avatar = self._create_btn("😎")
@@ -46,7 +64,9 @@ class FloatingToolbar(QWidget):
         self.layout.addLayout(self.row1)
         self.layout.addLayout(self.row2)
 
-        # Conexões internas
+        # ==========================================
+        # Sessão de Conexões Internas de Eventos
+        # ==========================================
         self.btn_close.clicked.connect(self.close_requested.emit)
         self.btn_minus.clicked.connect(lambda: self.resize_requested.emit(-20))
         self.btn_plus.clicked.connect(lambda: self.resize_requested.emit(20))
@@ -59,6 +79,16 @@ class FloatingToolbar(QWidget):
         self.hide()
 
     def _create_btn(self, text, extra_style=""):
+        """
+        Método utilitário privado para instanciar e estilizar os botões arredondados da toolbar.
+        
+        Args:
+            text (str): Texto ou Emoji a ser exibido no botão.
+            extra_style (str, optional): Regras CSS extras para injetar no QSS (ex: cor de fundo).
+            
+        Returns:
+            QPushButton: O botão configurado e com o visual aplicado.
+        """
         btn = QPushButton(text)
         btn.setFixedSize(32, 32)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
