@@ -1,6 +1,6 @@
 [project]
 name = "pip-cam"
-version = "0.1.0"
+version = "v1.2.3.1-alpha"
 description = "Um widget de câmera flutuante, leve e customizável desenvolvido em Python e PyQt6."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,12 +14,50 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["poethepoet>=0.44.0", "pyinstaller>=6.19.0"]
+dev = [
+    "coverage>=7.13.5",
+    "poethepoet>=0.44.0",
+    "pyinstaller>=6.19.0",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.1.0",
+    "pytest-mock>=3.15.1",
+    "pytest-qt>=4.5.0",
+]
 
 [tool.poe.tasks]
+# coverage package commands
+cov-run = "uv run coverage run -m pytest"
+cov-report = "uv run coverage report"
+cov-html = "uv run coverage html"
+
+# pytest package commands (optional)
+test = "uv run pytest --cov=classes --cov=utils --cov-report=term-missing"
+
+# development commands
 play = "uv run main.py"
 build = "uv run pyinstaller --noconfirm --onefile --windowed --icon=\"assets/pipcam_icon.ico\" --name=\"pipcamwin\" --add-data=\"classes;classes/\" --add-data=\"utils;utils/\" --add-data=\"assets;assets/\" main.py"
 
+# development tasks
 [tool.poe.tasks.dev]
 sequence = ["build", "play"]
 
+# coverage package tasks
+[tool.poe.tasks.coverage]
+sequence = ["cov-run", "cov-report", "cov-html"]
+
+# coverage run configs
+[tool.coverage.run]
+source = ["classes", "utils", "tests"]
+omit = ["tests/*", "*/__pycache__/*", "*/migrations/*", "*main.py"]
+
+[tool.coverage.report]
+show_missing = true
+# Ignorar linhas vazias/comentários no cálculo
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "pass",
+    "raise NotImplementedError",
+]
+fail_under = 90 # Falha se a cobertura total for menor que 90%

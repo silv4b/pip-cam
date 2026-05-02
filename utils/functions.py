@@ -46,7 +46,7 @@ os.makedirs(AVATAR_DIR, exist_ok=True)
 # ==========================================
 def _migrate_old_files():
     """
-    Migra arquivos de configuração e avatares antigos do diretório local 
+    Migra arquivos de configuração e avatares antigos do diretório local
     para o novo diretório centralizado em AppData ou ~/.pip_cam_config.
     """
     try:
@@ -126,9 +126,9 @@ DEFAULT_CONFIGS = {
 # ==========================================
 def load_all_configs():
     """
-    Carrega as configurações do JSON. 
+    Carrega as configurações do JSON.
     Se o arquivo não existir ou for inválido, cria/retorna as configurações padrão.
-    
+
     Returns:
         dict: Dicionário contendo todas as configurações da aplicação.
     """
@@ -150,7 +150,7 @@ def load_all_configs():
 def save_all_configs(configs):
     """
     Salva o dicionário completo de configurações no disco em formato JSON.
-    
+
     Args:
         configs (dict): Dicionário com as configurações a serem salvas.
     """
@@ -165,12 +165,12 @@ def save_all_configs(configs):
 
 def resource_path(relative_path):
     """
-    Retorna o caminho absoluto para o recurso, funcionando tanto no ambiente de 
+    Retorna o caminho absoluto para o recurso, funcionando tanto no ambiente de
     desenvolvimento quanto no executável empacotado pelo PyInstaller.
-    
+
     Args:
         relative_path (str): Caminho relativo do recurso (ex: 'assets/icon.png').
-        
+
     Returns:
         str: Caminho absoluto para o recurso.
     """
