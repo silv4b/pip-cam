@@ -63,18 +63,16 @@ Assim que o comando `git push origin v1.0.0` é executado, o GitHub Actions segu
 
 ## 5. Dicas de Versionamento (Semantic Versioning)
 
-Para manter o projeto organizado, tente seguir esta lógica para os números:
+Para manter o projeto organizado, seguir esta lógica para os números:
 
 * **v1.0.0**: Primeira versão estável.
 * **v1.0.1 (Patch)**: Quando você apenas corrige um bug (fix).
 * **v1.1.0 (Minor)**: Quando você adiciona uma nova funcionalidade (feat).
 * **v2.0.0 (Major)**: Quando há uma mudança incompatível ou uma refatoração total da interface.
 
-> **Nota:** Certifique-se de que o arquivo `.github/workflows/build.yml` tenha as permissões `contents: write` para que o GitHub permita a criação da página de release automaticamente.
-
 ## 6. Commits a partir de versões
 
-Listar commits a partir de alguma versão. (para os PRs).
+Para listar commits a partir de alguma versão. (para os PRs).
 
 Comando: `git log <versao>..HEAD --oneline`
 
