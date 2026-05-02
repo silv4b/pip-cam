@@ -2,6 +2,11 @@ from PyQt6.QtCore import pyqtSignal, QObject
 
 
 class ShortcutSignals(QObject):
+    """
+    Define os sinais Qt que serão emitidos pelo HotkeyManager
+    e consumidos pelas Views (como o PipCameraWidget).
+    """
+
     resize_signal = pyqtSignal(int)
     toggle_signal = pyqtSignal()
     toggle_avatar_signal = pyqtSignal()
@@ -9,3 +14,4 @@ class ShortcutSignals(QObject):
     toggle_camera_signal = pyqtSignal()
     toggle_format_signal = pyqtSignal()
     toggle_border_mode_signal = pyqtSignal()
+    toggle_border_visibility_signal = pyqtSignal()
