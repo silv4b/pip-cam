@@ -4,6 +4,8 @@
 
 ![License](https://img.shields.io/github/license/silv4b/pip-cam)
 ![Release](https://img.shields.io/github/v/release/silv4b/pip-cam)
+![Tests](https://img.shields.io/badge/tests-125%20passing-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-93%25-brightgreen)
 ![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat&logo=windows&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat&logo=python&logoColor=white)
 ![PyQt6](https://img.shields.io/badge/PyQt6-41BEF5?style=flat&logo=qt&logoColor=white)
@@ -101,8 +103,39 @@ pip-cam/
 │   └── shortcut_signals.py      # Definições de sinais PyQt
 ├── utils/
 │   └── functions.py             # Leitura/escrita de config, caminhos de recursos, migrações
+├── tests/                       # Suíte de testes automatizados
 ├── assets/                      # Ícones e imagens
-└── docs/                        # Documentação
+└── docs/                        # Documentação adicional
+```
+
+Para detalhes de cada categoria de teste, consulte [docs/sobre-os-testes.md](docs/sobre-os-testes.md).
+
+## Requisitos
+
+- **Sistema Operacional**: Windows 10/11 (alvo principal), Linux/macOS
+- **Python**: 3.12+ (testado em 3.12 e 3.14)
+- **Dependências**: Ver `pyproject.toml`
+
+### Dependências Python
+
+```text
+keyboard>=0.13.5         # Hooks globais de teclado
+numpy>=2.2.6             # Operações numéricas para processamento de áudio
+opencv-python>=4.13.0.92 # Captura de vídeo e manipulação de frames
+pygrabber>=0.2           # Enumeração de dispositivos DirectShow (Windows)
+pyqt6>=6.11.0            # Bindings Qt6 para GUI
+sounddevice>=0.5.5       # Stream de entrada de áudio
+```
+
+### Dependências de Desenvolvimento
+
+```text
+pytest>=9.0.3            # Framework de testes
+pytest-qt>=4.5.0         # Integração de testes com PyQt6
+pytest-cov>=7.1.0        # Relatório de cobertura de testes
+pytest-mock>=3.15.1      # Mocks para testes
+coverage>=7.13.5         # Ferramenta de cobertura independente
+poe>=0.30.0              # Task runner (poethepoet)
 ```
 
 ## Atalhos Globais
@@ -121,23 +154,6 @@ Todos os atalhos usam o modificador `Alt` e funcionam em todo o sistema, mesmo q
 | `Alt + +` | Aumentar tamanho do widget (+20px)                     |
 | `Alt + -` | Diminuir tamanho do widget (-20px)                     |
 | `Esc`     | Fechar widget e retornar ao launcher                   |
-
-## Requisitos
-
-- **Sistema Operacional**: Windows 10/11 (alvo principal)
-- **Python**: 3.12+ (testado em 3.12 e 3.14)
-- **Dependências**: Ver `pyproject.toml`
-
-### Dependências Python
-
-```text
-keyboard>=0.13.5         # Hooks globais de teclado
-numpy>=2.2.6             # Operações numéricas para processamento de áudio
-opencv-python>=4.13.0.92 # Captura de vídeo e manipulação de frames
-pygrabber>=0.2           # Enumeração de dispositivos DirectShow (Windows)
-pyqt6>=6.11.0            # Bindings Qt6 para GUI
-sounddevice>=0.5.5       # Stream de entrada de áudio
-```
 
 ## Instalação
 
@@ -230,7 +246,7 @@ As configurações do projeto são salvas em:  `%APPDATA%/PiP_Cam/` no Windows.
     "last_mode": "Círculo", // default shape
     "last_camera_name": "USB Camera", // default camera
     "use_avatar": false, // default avatar
-    "avatar_path": "C:\\Users\\...\\avatar.png",
+    "avatar_path": "",
     "multi_cam_mode": false,
     "hide_toolbar": false,
     "starts_muted": false,
@@ -278,4 +294,4 @@ Este projeto está sob a Licença MIT. Veja o arquivo [LICENSE](LICENSE) para de
 
 ## Aviso
 
-O último release do GitHub ([v1.2.3.1-alpha](https://github.com/silv4b/pip-cam/releases/tag/v1.2.3.1-alpha) pode estar atrás do código fonte. O projeto está em desenvolvimento ativo, e funcionalidades ou correções de bugs presentes no branch principal podem não estar refletidas no release publicado. Para a versão mais atualizada, compile a partir do código fonte seguindo as instruções acima.
+O último release do GitHub [v1.3.0](https://github.com/silv4b/pip-cam/releases/tag/v1.3.0) pode estar atrás do código fonte. O projeto está em desenvolvimento ativo, e funcionalidades ou correções de bugs presentes no branch principal podem não estar refletidas no release publicado. Para a versão mais atualizada, compile a partir do código fonte seguindo as instruções acima.
