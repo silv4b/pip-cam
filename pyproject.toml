@@ -61,3 +61,9 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 fail_under = 90 # Falha se a cobertura total for menor que 90%
+
+# comandos de versionamento
+[tool.poe.tasks.v-log]
+help = "Mostra o log desde uma versão específica"
+args = [{ name = "version", positional = true, required = true }]
+cmd = "git log $version..HEAD --oneline"
