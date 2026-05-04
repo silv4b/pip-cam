@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import QApplication, QSplashScreen
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QPixmap
 
+import qt_themes
 from utils.functions import init_app_environment
 
 
@@ -98,6 +99,7 @@ if __name__ == "__main__":
     # Configuração inicial da Aplicação Qt
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    qt_themes.set_theme("dracula")
 
     # Prepara diretórios e arquivos de configuração
     init_app_environment()

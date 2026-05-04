@@ -41,7 +41,7 @@ class Launcher(QWidget):
         logo_path = resource_path("assets/pipcam_icon.ico")
         self.setWindowIcon(QIcon(logo_path))
         self.setWindowTitle("PiP Cam Setup")
-        self.setFixedSize(440, 810)
+        self.setFixedSize(440, 850)
 
         # ==========================================
         # Sessão de Gerenciamento de Estado
