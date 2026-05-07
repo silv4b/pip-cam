@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QFormLayout,
     QLineEdit,
+    QApplication,
     QColorDialog,
     QFileDialog,
     QLabel,
@@ -491,6 +492,14 @@ class Launcher(QWidget):
         self.form.setRowVisible(self.mic_label, not is_solid)
         self.form.setRowVisible(self.check_mic_muted, not is_solid)
         self.form.setRowVisible(self.audio_sensitivity_container, not is_solid)
+
+        # Força o recálculo do layout e ajuste automático da altura
+        self.form.invalidate()
+        self.form.activate()
+        QApplication.processEvents()
+        window = self.window()
+        if window:
+            window.adjustSize()
 
     def choose_avatar(self):
         """Abre o explorador de arquivos para a seleção de uma imagem."""
