@@ -31,13 +31,7 @@ jobs:
 
             - name: Build Executable
               run: |
-                  uv run pyinstaller --noconfirm --onefile --windowed `
-                  --icon "assets/pipcam_icon.ico" `
-                  --name "pipcamwin" `
-                  --add-data "classes;classes/" `
-                  --add-data "utils;utils/" `
-                  --add-data "assets;assets/" `
-                  main.py
+                  uv run pyinstaller --noconfirm pipcamwin.spec
 
             - name: Compile .ISS to .EXE
               uses: Minionguyjpro/Inno-Setup-Action@v1.2.2

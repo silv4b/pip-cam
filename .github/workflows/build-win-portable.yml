@@ -31,13 +31,7 @@ jobs:
 
             - name: Build Portable Executable
               run: |
-                  uv run pyinstaller --noconfirm --onefile --windowed `
-                  --icon "assets/pipcam_icon.ico" `
-                  --name "PipCamPortable" `
-                  --add-data "classes;classes/" `
-                  --add-data "utils;utils/" `
-                  --add-data "assets;assets/" `
-                  main.py
+                  uv run pyinstaller --noconfirm pipcamportable.spec
 
             - name: Create Release and Upload Asset
               uses: softprops/action-gh-release@v2
