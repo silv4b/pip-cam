@@ -4,7 +4,7 @@ from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QPixmap
 
 import qt_themes
-from utils.functions import init_app_environment
+from utils.functions import init_app_environment, resource_path
 
 
 def load_heavy_modules():
@@ -42,7 +42,7 @@ class AppStarter:
         Inicia também o timer para o carregamento dos módulos pesados.
         """
         # Carregamento da imagem da splash screen
-        pixmap = QPixmap("assets/pipcam_icon.png")
+        pixmap = QPixmap(resource_path("assets/pipcam_icon.png"))
         if pixmap.isNull():
             pixmap = QPixmap(156, 156)
             pixmap.fill(Qt.GlobalColor.darkBlue)

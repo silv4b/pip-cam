@@ -37,7 +37,7 @@ test = "uv run pytest --cov=classes --cov=utils --cov-report=term-missing"
 
 # development commands
 play = "uv run main.py"
-build = "uv run pyinstaller --noconfirm --onefile --windowed --icon=\"assets/pipcam_icon.ico\" --name=\"pipcamwin\" --add-data=\"classes;classes/\" --add-data=\"utils;utils/\" --add-data=\"assets;assets/\" main.py"
+build = "uv run pyinstaller --noconfirm pipcamwin.spec"
 
 # development tasks
 [tool.poe.tasks.dev]
