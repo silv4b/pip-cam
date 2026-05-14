@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
 )
 from PyQt6.QtGui import QGuiApplication, QIntValidator, QIcon, QColor, QPixmap
-from utils.functions import resource_path
+from utils.functions import resource_path, block_signals
 from classes.views.pip_widget import PipCameraWidget
 from classes.core.device_manager import DeviceManager
 from classes.ui.filter_dialogs import FilterDialog
@@ -242,7 +242,7 @@ class Launcher(QWidget):
 
         # --- Checkboxes Globais ---
         self.check_multi_cam = QCheckBox("Modo Multi-Câmeras (Abrir vários widgets)")
-        self.check_multi_cam.stateChanged.connect(self.save_current_launcher_settings)
+        self.check_multi_cam.stateChanged.connect(self._on_multi_cam_toggled)
         self.form.addRow("", self.check_multi_cam)
 
         self.check_hide_toolbar = QCheckBox(
@@ -325,73 +325,66 @@ class Launcher(QWidget):
         """
         self.all_configs = self.config_manager.reload()
 
-        # Bloqueia sinais para evitar loops de salvamento durante o carregamento
-        self.cam_combo.blockSignals(True)
-        self.mode_combo.blockSignals(True)
-        self.border_mode_combo.blockSignals(True)
-        self.mic_combo.blockSignals(True)
-        self.zoom_slider.blockSignals(True)
-        self.pan_slider.blockSignals(True)
-        self.pan_x_slider.blockSignals(True)
-        self.audio_sensitivity_slider.blockSignals(True)
-        self.check_mic_muted.blockSignals(True)
-        self.btn_preview_avatar.blockSignals(True)
+        with block_signals(
+            self.cam_combo,
+            self.mode_combo,
+            self.border_mode_combo,
+            self.mic_combo,
+            self.zoom_slider,
+            self.pan_slider,
+            self.pan_x_slider,
+            self.audio_sensitivity_slider,
+            self.check_mic_muted,
+            self.btn_preview_avatar,
+            self.check_multi_cam,
+        ):
+            self.populate_cameras()
 
-        self.populate_cameras()
+            # Restaura a última câmera selecionada
+            last_cam = self.all_configs.get("last_camera_name")
+            if last_cam:
+                idx = self.cam_combo.findText(last_cam)
+                if idx != -1:
+                    self.cam_combo.setCurrentIndex(idx)
 
-        # Restaura a última câmera selecionada
-        last_cam = self.all_configs.get("last_camera_name")
-        if last_cam:
-            idx = self.cam_combo.findText(last_cam)
-            if idx != -1:
-                self.cam_combo.setCurrentIndex(idx)
+            # Restaura o último formato selecionado
+            last_mode = self.all_configs.get("last_mode")
+            if last_mode:
+                self.mode_combo.setCurrentText(last_mode)
 
-        # Restaura o último formato selecionado
-        last_mode = self.all_configs.get("last_mode")
-        if last_mode:
-            self.mode_combo.setCurrentText(last_mode)
+            self.populate_mics()
+            self.apply_mode_preview()
 
-        self.populate_mics()
-        self.apply_mode_preview()
+            border_color = self.all_configs.get("border_color", "#4d6fc4")
+            self.color_input.setText(border_color)
 
-        border_color = self.all_configs.get("border_color", "#4d6fc4")
-        self.color_input.setText(border_color)
+            avatar_path = self.all_configs.get("avatar_path", "")
+            self.avatar_input.setText(avatar_path)
 
-        avatar_path = self.all_configs.get("avatar_path", "")
-        self.avatar_input.setText(avatar_path)
+            # Carrega visualmente qual feed foi usado da última vez e aplica no preview
+            use_avatar_default = self.all_configs.get("use_avatar", False)
+            self.btn_preview_avatar.setChecked(use_avatar_default)
 
-        # Carrega visualmente qual feed foi usado da última vez e aplica no preview
-        use_avatar_default = self.all_configs.get("use_avatar", False)
-        self.btn_preview_avatar.setChecked(use_avatar_default)
+            border_mode = self.all_configs.get("border_mode", "Cor Sólida")
+            self.border_mode_combo.setCurrentText(border_mode)
 
-        border_mode = self.all_configs.get("border_mode", "Cor Sólida")
-        self.border_mode_combo.setCurrentText(border_mode)
+            saved_mic_idx = self.all_configs.get("mic_device", -1)
+            if saved_mic_idx != -1:
+                idx = self.mic_combo.findData(saved_mic_idx)
+                if idx != -1:
+                    self.mic_combo.setCurrentIndex(idx)
 
-        saved_mic_idx = self.all_configs.get("mic_device", -1)
-        if saved_mic_idx != -1:
-            idx = self.mic_combo.findData(saved_mic_idx)
-            if idx != -1:
-                self.mic_combo.setCurrentIndex(idx)
+            self.check_mic_muted.setChecked(self.all_configs.get("starts_muted", False))
+            self.check_multi_cam.setChecked(
+                self.all_configs.get("multi_cam_mode", False)
+            )
+            self.check_hide_toolbar.setChecked(
+                self.all_configs.get("hide_toolbar", False)
+            )
 
-        self.check_mic_muted.setChecked(self.all_configs.get("starts_muted", False))
-        self.check_multi_cam.setChecked(self.all_configs.get("multi_cam_mode", False))
-        self.check_hide_toolbar.setChecked(self.all_configs.get("hide_toolbar", False))
-
-        audio_sensitivity = self.all_configs.get("audio_sensitivity", 2.0)
-        self.audio_sensitivity_slider.setValue(int(audio_sensitivity))
-        self.audio_sensitivity_label.setText(f"{audio_sensitivity:.1f}x")
-
-        # Desbloqueia e sincroniza
-        self.cam_combo.blockSignals(False)
-        self.mode_combo.blockSignals(False)
-        self.border_mode_combo.blockSignals(False)
-        self.mic_combo.blockSignals(False)
-        self.zoom_slider.blockSignals(False)
-        self.pan_slider.blockSignals(False)
-        self.pan_x_slider.blockSignals(False)
-        self.audio_sensitivity_slider.blockSignals(False)
-        self.check_mic_muted.blockSignals(False)
-        self.btn_preview_avatar.blockSignals(False)
+            audio_sensitivity = self.all_configs.get("audio_sensitivity", 2.0)
+            self.audio_sensitivity_slider.setValue(int(audio_sensitivity))
+            self.audio_sensitivity_label.setText(f"{audio_sensitivity:.1f}x")
 
         # Dispara manualmente as atualizações visuais
         self.toggle_border_config(border_mode)
@@ -533,6 +526,16 @@ class Launcher(QWidget):
     # ==========================================
     # Sessão de Persistência de Dados
     # ==========================================
+
+    def _on_multi_cam_toggled(self, state):
+        """Exibe aviso ao ativar modo multi-câmeras e salva a configuração."""
+        if state:
+            QMessageBox.information(
+                self,
+                "Modo Multi-Câmeras",
+                "O modo multi-câmeras consome mais memória e pode deixar o aplicativo mais lento, dependendo da quantidade de câmeras abertas e da capacidade do seu sistema.",
+            )
+        self.save_current_launcher_settings()
 
     def save_current_launcher_settings(self):
         """
@@ -709,6 +712,8 @@ class Launcher(QWidget):
                 return
             ret, frame = self.preview_cap.read()
             if not ret:
+                self.preview_label.setText("Câmera sem\nsinal de vídeo")
+                self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 return
             qimage = VideoProcessor.process_frame(
                 frame, zoom_val, pan_x_val, pan_val, p_w, p_h
@@ -728,13 +733,69 @@ class Launcher(QWidget):
     # Sessão de Abertura e Fechamento (Instanciação de PiPs)
     # ==========================================
 
+    def _get_available_cameras(self):
+        active_indices = {
+            pip.cam_index for pip in self.active_pips if pip.cam_index >= 0
+        }
+        available = []
+        for i in range(self.cam_combo.count()):
+            name = self.cam_combo.itemText(i)
+            idx = self.cam_combo.itemData(i)
+            if idx is not None and idx >= 0 and idx not in active_indices:
+                available.append((name, idx))
+        return available
+
     def remove_pip_from_list(self, pip_obj):
         """Limpa as referências de widgets fechados."""
         if pip_obj in self.active_pips:
             print(f"Removendo camera {pip_obj.cam_index} da lista ativa.")
             self.active_pips.remove(pip_obj)
+        self.preview_label.clear()
+        if self.isVisible():
+            available = self._get_available_cameras()
+            if available:
+                next_name, _ = available[0]
+                combo_idx = self.cam_combo.findText(next_name)
+                if combo_idx != -1:
+                    self._apply_widget_settings_to_preview(pip_obj, combo_idx)
+                    return
         if not self.active_pips:
             self.restart_preview()
+
+    def _apply_widget_settings_to_preview(self, pip_obj, combo_idx):
+        """Restaura os controles do Launcher conforme as configurações do widget fechado."""
+        with block_signals(
+            self.cam_combo,
+            self.mode_combo,
+            self.border_mode_combo,
+            self.mic_combo,
+            self.zoom_slider,
+            self.pan_slider,
+            self.pan_x_slider,
+            self.audio_sensitivity_slider,
+            self.check_mic_muted,
+            self.btn_preview_avatar,
+        ):
+            self.cam_combo.setCurrentIndex(combo_idx)
+            try:
+                self.mode_combo.setCurrentText(pip_obj.mode)
+            except RuntimeError:
+                pass
+            self.zoom_slider.setValue(pip_obj.zoom)
+            self.pan_slider.setValue(pip_obj.pan_y)
+            self.pan_x_slider.setValue(pip_obj.pan_x)
+            self.size_input.setText(str(pip_obj.base_width))
+            self.color_input.setText(pip_obj.border_color)
+            self.avatar_input.setText(pip_obj.avatar_path)
+            self.btn_preview_avatar.setChecked(pip_obj.use_avatar)
+            try:
+                self.border_mode_combo.setCurrentText(pip_obj.border_mode)
+            except RuntimeError:
+                pass
+            self.check_show_border.setChecked(pip_obj.show_border)
+
+        self.apply_mode_preview()
+        self.restart_preview()
 
     def start_pip(self):
         """
@@ -837,6 +898,21 @@ class Launcher(QWidget):
 
         self.active_pips.append(self.pip)
         self.pip.show()
+
+        if is_multi:
+            available = self._get_available_cameras()
+            if available:
+                next_name, _ = available[0]
+                self.preview_label.clear()
+                combo_idx = self.cam_combo.findText(next_name)
+                if combo_idx != -1:
+                    self.cam_combo.setCurrentIndex(combo_idx)
+            else:
+                self.preview_label.clear()
+                self.preview_label.setText(
+                    "Todas as câmeras\nem uso.\nFeche um widget\npara liberar."
+                )
+                self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         if not is_multi:
             self.hide()

@@ -122,6 +122,16 @@ class TestConfigManagerSave:
         config_manager.request_save()
         config_manager._save_timer.start.assert_called_once_with(200)
 
+    def test_do_save_handles_exception(self, config_manager, capsys):
+        """_do_save() deve tratar exceção do save_all_configs sem crash."""
+        with patch(
+            "classes.core.config_manager.save_all_configs",
+            side_effect=PermissionError("Access denied"),
+        ):
+            config_manager._do_save()
+            captured = capsys.readouterr()
+            assert "Erro" in captured.out or "erro" in captured.out.lower()
+
 
 class TestConfigManagerReload:
     def test_reload_clears_and_updates_configs(self, config_manager):
@@ -137,6 +147,17 @@ class TestConfigManagerReload:
 
         assert "stale" not in result
         assert result["fresh"] == "data"
+
+    def test_reload_handles_exception_gracefully(self, config_manager):
+        """reload() não deve crashar se load_all_configs lançar exceção."""
+        config_manager.configs["existing"] = "value"
+        with patch(
+            "classes.core.config_manager.load_all_configs",
+            side_effect=Exception("Disk error"),
+        ):
+            result = config_manager.reload()
+        assert result is not None
+        assert isinstance(result, dict)
 
 
 class TestConfigManagerSingleton:

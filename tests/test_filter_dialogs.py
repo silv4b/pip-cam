@@ -117,3 +117,10 @@ class TestFilterDialog:
         qtbot.add_widget(dialog)
         assert dialog.list_widget.count() == 0
         assert dialog.get_selected_items() == []
+
+    def test_none_items_does_not_crash(self, qtbot):
+        """FilterDialog com items=None não deve crashar."""
+        dialog = FilterDialog("Test", None, [])
+        qtbot.add_widget(dialog)
+        assert dialog.list_widget.count() == 0
+        assert dialog.get_selected_items() == []

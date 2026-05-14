@@ -167,3 +167,33 @@ class TestAudioAnalyzer:
 
             mock_stream.stop.assert_called_once()
             assert analyzer.stream is None
+
+    def test_multiple_start_stop_cycles(self, qtbot):
+        """Múltiplos ciclos de start/stop não devem causar erro ou vazamento."""
+        mock_stream = MagicMock()
+        with patch(
+            "classes.core.audio_analyzer.sd.InputStream", return_value=mock_stream
+        ):
+            analyzer = AudioAnalyzer(device_index=0)
+            for _ in range(3):
+                analyzer.start()
+                analyzer.stop()
+            assert analyzer.stream is None
+
+    def test_zero_audio_data_does_not_crash(self, qtbot):
+        """Callback com dados zerados deve resultar em nível 0.0 sem crash."""
+        with patch("classes.core.audio_analyzer.sd.InputStream") as MockStream:
+            analyzer = AudioAnalyzer(device_index=0)
+            callback = None
+
+            def capture_callback(**kwargs):
+                nonlocal callback
+                callback = kwargs["callback"]
+                return MagicMock()
+
+            MockStream.side_effect = capture_callback
+            analyzer.start()
+
+            test_data = np.zeros((441, 1), dtype=np.float32)
+            callback(test_data, 1, None, None)
+            assert analyzer.current_level == 0.0

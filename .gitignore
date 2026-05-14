@@ -3,10 +3,11 @@
 
 # PiP Cam
 pip_config.json
-*.spec
 pip_cam_config/
 Output/
 inno-setup.iss
+.opencode/
+.agent/
 
 ### Git ###
 # Created by git for backups. To disable backups in Git:

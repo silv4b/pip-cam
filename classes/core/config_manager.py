@@ -19,11 +19,11 @@ class ConfigManager:
         if cls._instance is None:
             cls._instance = super(ConfigManager, cls).__new__(cls)
             cls._instance.configs = load_all_configs()
-            
+
             # Timer de Debounce para salvamento automático
             cls._instance._save_timer = QTimer()
             cls._instance._save_timer.setSingleShot(True)
-            cls._instance._save_timer.setInterval(500)  # Debounce de 500ms
+            cls._instance._save_timer.setInterval(200)  # Debounce de 200ms
             cls._instance._save_timer.timeout.connect(cls._instance._do_save)
         return cls._instance
 
@@ -33,25 +33,28 @@ class ConfigManager:
 
     def reload(self):
         """
-        Recarrega as configurações do disco, atualizando o cache local 
+        Recarrega as configurações do disco, atualizando o cache local
         sem perder a referência de memória do dicionário existente.
-        
+
         Returns:
             dict: As configurações atualizadas.
         """
-        new_data = load_all_configs()
-        self.configs.clear()
-        self.configs.update(new_data)
+        try:
+            new_data = load_all_configs()
+            self.configs.clear()
+            self.configs.update(new_data)
+        except Exception as e:
+            print(f"Erro ao recarregar configs: {e}")
         return self.configs
 
     def get(self, key, default=None):
         """
         Busca o valor de uma configuração no cache local.
-        
+
         Args:
             key (str): A chave da configuração a ser buscada.
             default (any): Valor retornado caso a chave não exista.
-            
+
         Returns:
             any: O valor da configuração.
         """
@@ -61,11 +64,11 @@ class ConfigManager:
         """
         Recupera as configurações específicas de um modo (ex: "Camera 1_Círculo").
         Caso não exista, tenta buscar num modo de fallback.
-        
+
         Args:
             mode_key (str): Chave específica do modo.
             fallback_mode (str): Chave genérica a ser usada como fallback.
-            
+
         Returns:
             dict: O dicionário com as configurações do modo (tamanho, pan, zoom, etc).
         """
@@ -78,7 +81,7 @@ class ConfigManager:
     def set_global(self, key, value):
         """
         Atualiza uma configuração de nível global no cache e agenda um salvamento.
-        
+
         Args:
             key (str): A chave a ser atualizada.
             value (any): O novo valor.
@@ -90,7 +93,7 @@ class ConfigManager:
         """
         Atualiza um bloco de configurações específico para um modo/câmera
         no cache e agenda um salvamento.
-        
+
         Args:
             mode_key (str): Chave específica do modo.
             size (int): Tamanho base.
@@ -110,7 +113,7 @@ class ConfigManager:
 
     def request_save(self):
         """
-        Agenda o salvamento em disco. Utiliza o timer para evitar 
+        Agenda o salvamento em disco. Utiliza o timer para evitar
         múltiplas gravações seguidas (I/O intensivo).
         """
         self._save_timer.start(200)
@@ -125,8 +128,11 @@ class ConfigManager:
 
     def _do_save(self):
         """
-        Método interno que executa fisicamente a gravação do cache 
+        Método interno que executa fisicamente a gravação do cache
         para o arquivo JSON no disco.
         """
-        save_all_configs(self.configs)
-        print("Configurações salvas no disco com sucesso.")
+        try:
+            save_all_configs(self.configs)
+            print("Configurações salvas no disco com sucesso.")
+        except Exception as e:
+            print(f"Erro ao salvar configurações: {e}")
