@@ -173,6 +173,14 @@ uv sync
 uv run main.py
 ```
 
+### Instalação via PowerShell One-liner (versão portátil)
+
+Copie e cole o comando abaixo no PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/silv4b/pip-cam/main/install.ps1 | iex
+```
+
 ### Hotkeys Globais no Linux
 
 Os atalhos globais de teclado requerem permissão de acesso ao dispositivo de input. No Linux, há duas maneiras:
