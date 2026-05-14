@@ -82,3 +82,17 @@ class TestShortcutSignals:
         signals.resize_signal.emit(-5)
 
         assert received == [10, 20, -5]
+
+    def test_signal_disconnect_works(self, qtbot):
+        """disconnect() deve impedir que o slot receba novas emissões."""
+        signals = ShortcutSignals()
+        received = []
+        signals.resize_signal.connect(received.append)
+        signals.resize_signal.emit(10)
+        signals.resize_signal.disconnect(received.append)
+        assert received == [10]
+
+    def test_signal_with_wrong_type_does_not_crash(self, qtbot):
+        """Sinal emitido com tipo inesperado não deve crashar o emissor."""
+        signals = ShortcutSignals()
+        signals.resize_signal.emit("not_an_int")

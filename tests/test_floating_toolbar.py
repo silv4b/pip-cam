@@ -118,3 +118,35 @@ class TestFloatingToolbar:
         assert hasattr(toolbar, "avatar_toggled")
         assert hasattr(toolbar, "format_toggled")
         assert hasattr(toolbar, "border_mode_toggled")
+
+    def test_toolbar_without_parent_does_not_crash(self, qtbot):
+        """FloatingToolbar criada sem parent não deve crashar."""
+        toolbar = FloatingToolbar()
+        qtbot.add_widget(toolbar)
+        assert toolbar is not None
+
+    def test_toolbar_show_hide_cycle(self, qtbot):
+        """Ciclo show/hide múltiplas vezes não deve causar erro."""
+        toolbar = FloatingToolbar()
+        qtbot.add_widget(toolbar)
+        for _ in range(5):
+            toolbar.show()
+            assert toolbar.isVisible()
+            toolbar.hide()
+            assert toolbar.isHidden()
+
+    def test_rapid_button_clicks(self, qtbot):
+        """Múltiplos clicks rápidos no mesmo botão não devem acumular sinais quebrados."""
+        toolbar = FloatingToolbar()
+        qtbot.add_widget(toolbar)
+        toolbar.show()
+        received_count = 0
+
+        def count():
+            nonlocal received_count
+            received_count += 1
+
+        toolbar.close_requested.connect(count)
+        for _ in range(10):
+            toolbar.btn_close.click()
+        assert received_count == 10

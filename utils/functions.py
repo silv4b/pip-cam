@@ -3,6 +3,7 @@ import sys
 import os
 import shutil
 import platform
+from contextlib import contextmanager
 
 # ==========================================
 # Constantes de Plataforma
@@ -180,3 +181,26 @@ def resource_path(relative_path):
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
+
+
+@contextmanager
+def block_signals(*widgets):
+    """
+    Context manager que bloqueia os sinais de um ou mais widgets Qt,
+    evitando que setters disparem eventos durante alterações em lote.
+
+    Args:
+        *widgets: Widgets Qt cujos sinais serão temporariamente bloqueados.
+
+    Exemplo:
+        with block_signals(combo, slider):
+            combo.setCurrentIndex(0)
+            slider.setValue(50)
+    """
+    for w in widgets:
+        w.blockSignals(True)
+    try:
+        yield
+    finally:
+        for w in widgets:
+            w.blockSignals(False)

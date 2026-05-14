@@ -116,6 +116,21 @@ class TestProcessFrame:
         result = VideoProcessor.process_frame(sample_frame, 100, 50, 50, 320, 240)
         assert isinstance(result, QImage)
 
+    def test_zero_target_width_does_not_crash(self, sample_frame):
+        """Garante que target_w=0 é tratado sem divisão por zero."""
+        result = VideoProcessor.process_frame(sample_frame, 100, 50, 50, 0, 240)
+        assert result is None
+
+    def test_zero_target_height_does_not_crash(self, sample_frame):
+        """Garante que target_h=0 é tratado sem divisão por zero."""
+        result = VideoProcessor.process_frame(sample_frame, 100, 50, 50, 320, 0)
+        assert result is None
+
+    def test_both_targets_zero_does_not_crash(self, sample_frame):
+        """Garante que target_w=0 e target_h=0 é tratado sem crash."""
+        result = VideoProcessor.process_frame(sample_frame, 100, 50, 50, 0, 0)
+        assert result is None
+
 
 class TestCreateMaskedPixmap:
     def test_circle_mode(self, sample_frame):
@@ -211,3 +226,19 @@ class TestCreateMaskedPixmap:
         assert isinstance(pixmap, QPixmap)
         assert pixmap.width() == 200
         assert pixmap.height() == 200
+
+    def test_none_input_does_not_crash(self):
+        """create_masked_pixmap com None como imagem não deve crashar."""
+        pixmap = VideoProcessor.create_masked_pixmap(
+            None, 200, 200, "Círculo", "#4d6fc4"
+        )
+        assert isinstance(pixmap, QPixmap)
+
+    def test_invalid_mode_falls_back_to_rounded_rect(self, sample_frame):
+        """Modo inválido não deve crashar; deve cair no fallback de retângulo."""
+        qimage = VideoProcessor.process_frame(sample_frame, 100, 50, 50, 200, 200)
+        pixmap = VideoProcessor.create_masked_pixmap(
+            qimage, 200, 200, "Hexágono", "#4d6fc4"
+        )
+        assert isinstance(pixmap, QPixmap)
+        assert pixmap.width() == 200

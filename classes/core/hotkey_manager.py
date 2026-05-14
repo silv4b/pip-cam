@@ -47,10 +47,10 @@ class HotkeyManager:
             keyboard.add_hotkey("alt+=", lambda: self.signals.resize_signal.emit(20))
             keyboard.add_hotkey("alt+plus", lambda: self.signals.resize_signal.emit(20))
             keyboard.add_hotkey("alt+-", lambda: self.signals.resize_signal.emit(-20))
-            
+
             # Atalho de Visibilidade da Janela
             keyboard.add_hotkey("alt+s", lambda: self.signals.toggle_signal.emit())
-            
+
             # Atalhos de Alternância (Toggles) de Componentes
             keyboard.add_hotkey(
                 "alt+a", lambda: self.signals.toggle_avatar_signal.emit()
@@ -72,17 +72,3 @@ class HotkeyManager:
             print("Atalhos globais inicializados com sucesso.")
         except Exception as e:
             print(f"Erro ao configurar atalhos globais: {e}")
-
-    # ==========================================
-    # Sessão de Limpeza e Encerramento
-    # ==========================================
-
-    def cleanup(self):
-        """
-        Remove todos os ganchos (hooks) de teclado associados.
-        Deve ser chamado ao encerrar a aplicação para liberar recursos do sistema.
-        """
-        try:
-            keyboard.unhook_all()
-        except:
-            pass

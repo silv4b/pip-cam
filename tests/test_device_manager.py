@@ -252,3 +252,16 @@ class TestOpenCamera:
                 result = DeviceManager.open_camera(0)
                 MockVideo.assert_called_once_with(0)
                 assert result == mock_cap
+
+    def test_open_invalid_index_returns_cap(self):
+        """open_camera com índice inválido retorna um objeto VideoCapture (não lança exceção)."""
+        with patch("classes.core.device_manager.IS_WINDOWS", True):
+            result = DeviceManager.open_camera(-1)
+            assert result is not None
+
+    def test_open_invalid_index_is_not_opened(self):
+        """open_camera com índice inválido retorna uma cap que NÃO está aberta."""
+        with patch("classes.core.device_manager.IS_WINDOWS", True):
+            result = DeviceManager.open_camera(9999)
+            assert result is not None
+            assert not result.isOpened()
