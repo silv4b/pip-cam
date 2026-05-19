@@ -8,6 +8,7 @@ class AudioAnalyzer(QObject):
     Classe responsável por capturar o áudio do microfone e calcular os níveis de volume (RMS)
     para o modo "Sinalizador de Áudio" (Discord Mode).
     """
+
     level_changed = pyqtSignal(float)
 
     def __init__(self, device_index):
@@ -58,6 +59,12 @@ class AudioAnalyzer(QObject):
                 Função de callback chamada automaticamente pelo sounddevice sempre que
                 um novo pacote de áudio está disponível.
                 """
+                if status:
+                    print(status)
+
+                if indata.size == 0:
+                    return
+
                 # Cálculo do Root Mean Square (nível de energia do som)
                 rms = np.sqrt(np.mean(indata**2))
 
@@ -77,8 +84,7 @@ class AudioAnalyzer(QObject):
 
             self.stream = sd.InputStream(
                 device=self.device_index,
-                channels=1,
-                samplerate=44100,
+                dtype="float32",
                 callback=audio_callback,
             )
             self.stream.start()
@@ -93,6 +99,6 @@ class AudioAnalyzer(QObject):
             try:
                 self.stream.stop()
                 self.stream.close()
-            except:
+            except Exception:
                 pass
             self.stream = None

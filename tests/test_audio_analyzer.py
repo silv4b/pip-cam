@@ -47,8 +47,7 @@ class TestAudioAnalyzer:
 
             MockStream.assert_called_once_with(
                 device=0,
-                channels=1,
-                samplerate=44100,
+                dtype="float32",
                 callback=MockStream.call_args[1]["callback"],
             )
             mock_stream.start.assert_called_once()
