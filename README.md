@@ -67,6 +67,11 @@ O aplicativo opera em dois modos:
   - Modo da borda
   - Caminho do avatar
   - Dispositivo de microfone
+  - Sensibilidade do microfone
+  - Estado inicial de mute
+  - Visibilidade da borda
+  - Modo Slim (Toolbar oculta)
+  - Modo Multi-Câmeras
 
 ### Filtragem de Dispositivos
 
@@ -257,10 +262,12 @@ As configurações do projeto são salvas em:  `%APPDATA%/PiP_Cam/` no Windows.
     "avatar_path": "",
     "multi_cam_mode": false,
     "hide_toolbar": false,
+    "show_border": true,
     "starts_muted": false,
     "ignored_cameras": [],
     "ignored_mics": [],
     "mic_device": 0,
+    "audio_sensitivity": 2.0,
     "USB Camera_Círculo": {
         "size": 300,
         "zoom": 100,
@@ -289,6 +296,8 @@ O aplicativo migra automaticamente arquivos de configuração legados de:
    - Defina o nível de zoom (1.0x-5.0x)
    - Configure o alinhamento Pan (eixos X e Y)
    - Escolha o comportamento da borda (Cor Sólida ou Reativo ao Áudio)
+   - Ajuste a sensibilidade do áudio para o modo reativo
+   - Defina se o áudio deve iniciar mutado ou se a borda ficará oculta
    - Opcionalmente selecione uma imagem de avatar
    - Habilite o modo Multi-Câmera para múltiplas instâncias
    - Habilite o modo Slim para ocultar a toolbar
