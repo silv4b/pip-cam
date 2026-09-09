@@ -1,9 +1,10 @@
-from PyQt6.QtWidgets import QLabel, QWidget
-from PyQt6.QtCore import QTimer, Qt, QPoint
+from PyQt6.QtCore import QPoint, Qt, QTimer
 from PyQt6.QtGui import QPixmap
-from classes.ui.floating_toolbar import FloatingToolbar
-from classes.core.video_processor import VideoProcessor
+from PyQt6.QtWidgets import QLabel, QWidget
+
 from classes.core.config_manager import ConfigManager
+from classes.core.video_processor import VideoProcessor
+from classes.ui.floating_toolbar import FloatingToolbar
 
 
 class PipCameraWidget(QWidget):
@@ -33,6 +34,9 @@ class PipCameraWidget(QWidget):
         starts_muted=False,
         hide_toolbar=False,
         show_border=True,
+        avatar_zoom=100,
+        avatar_pan_x=50,
+        avatar_pan_y=50,
     ):
         """
         Inicializa o widget flutuante da câmera.
@@ -56,6 +60,9 @@ class PipCameraWidget(QWidget):
             starts_muted (bool): Se o avatar deve iniciar com indicação de mutado.
             hide_toolbar (bool): Se a barra flutuante de ferramentas deve estar desabilitada.
             show_border (bool): Se a borda deve ser desenhada ou não.
+            avatar_zoom (int): Nível de zoom do avatar (100 a 500).
+            avatar_pan_x (int): Alinhamento horizontal do avatar (0 a 100).
+            avatar_pan_y (int): Alinhamento vertical do avatar (0 a 100).
         """
         super().__init__()
 
@@ -63,6 +70,9 @@ class PipCameraWidget(QWidget):
         # Sessão de Inicialização de Estado
         # ==========================================
         self.zoom = zoom
+        self.avatar_zoom = avatar_zoom
+        self.avatar_pan_x = avatar_pan_x
+        self.avatar_pan_y = avatar_pan_y
         self.border_color = border_color
         self.current_border_color = border_color
         self.avatar_path = avatar_path
@@ -245,6 +255,11 @@ class PipCameraWidget(QWidget):
                 self.pan_x = int(mode_cfg.get("pan_x", 50))
                 self.pan_y = int(mode_cfg.get("pan_y", 50))
 
+                # Avatar zoom/pan (globais)
+                self.avatar_zoom = int(configs.get("avatar_zoom", 100))
+                self.avatar_pan_x = int(configs.get("avatar_pan_x", 50))
+                self.avatar_pan_y = int(configs.get("avatar_pan_y", 50))
+
                 # Aplica a posição salva para esta câmera (se existir)
                 if "x" in mode_cfg and "y" in mode_cfg:
                     self.target_pos = QPoint(int(mode_cfg["x"]), int(mode_cfg["y"]))
@@ -294,6 +309,11 @@ class PipCameraWidget(QWidget):
         self.zoom = int(mode_cfg.get("zoom", 100))
         self.pan_x = int(mode_cfg.get("pan_x", 50))
         self.pan_y = int(mode_cfg.get("pan_y", 50))
+
+        # Avatar zoom/pan (globais)
+        self.avatar_zoom = int(configs.get("avatar_zoom", 100))
+        self.avatar_pan_x = int(configs.get("avatar_pan_x", 50))
+        self.avatar_pan_y = int(configs.get("avatar_pan_y", 50))
 
         self.update_ui_geometry()
         self.config_manager.set_global("last_mode", self.mode)
@@ -397,6 +417,9 @@ class PipCameraWidget(QWidget):
             self.y(),
         )
         self.config_manager.set_global("use_avatar", self.use_avatar)
+        self.config_manager.set_global("avatar_zoom", self.avatar_zoom)
+        self.config_manager.set_global("avatar_pan_x", self.avatar_pan_x)
+        self.config_manager.set_global("avatar_pan_y", self.avatar_pan_y)
 
     # ==========================================
     # Sessão de Processamento Gráfico
@@ -421,8 +444,18 @@ class PipCameraWidget(QWidget):
             self.current_border_color = self.border_color
 
         if self.use_avatar and self.avatar_pixmap:
-            pixmap = VideoProcessor.create_masked_pixmap(
+            from classes.core.video_processor import process_avatar
+
+            qimage = process_avatar(
                 self.avatar_pixmap,
+                self.avatar_zoom,
+                self.avatar_pan_x,
+                self.avatar_pan_y,
+                self.curr_w,
+                self.curr_h,
+            )
+            pixmap = VideoProcessor.create_masked_pixmap(
+                qimage,
                 self.curr_w,
                 self.curr_h,
                 self.mode,

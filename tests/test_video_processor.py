@@ -1,6 +1,7 @@
-import pytest
 import numpy as np
-from PyQt6.QtGui import QImage, QPixmap, QColor
+import pytest
+from PyQt6.QtGui import QColor, QImage, QPixmap
+
 from classes.core.video_processor import VideoProcessor
 
 
@@ -242,3 +243,113 @@ class TestCreateMaskedPixmap:
         )
         assert isinstance(pixmap, QPixmap)
         assert pixmap.width() == 200
+
+
+class TestProcessAvatar:
+    def test_returns_none_for_none_pixmap(self):
+        """process_avatar com None retorna None."""
+        result = VideoProcessor.process_avatar(None, 100, 50, 50, 200, 200)
+        assert result is None
+
+    def test_returns_none_for_null_pixmap(self):
+        """process_avatar com QPixmap nulo retorna None."""
+        result = VideoProcessor.process_avatar(QPixmap(), 100, 50, 50, 200, 200)
+        assert result is None
+
+    def test_returns_qimage_for_valid_pixmap(self):
+        """Verifica que um QPixmap válido retorna um QImage."""
+        pixmap = QPixmap(400, 300)
+        pixmap.fill(QColor(100, 150, 200))
+        result = VideoProcessor.process_avatar(pixmap, 100, 50, 50, 200, 200)
+        assert isinstance(result, QImage)
+
+    def test_returns_correct_dimensions_no_zoom(self):
+        """Sem zoom, a imagem deve ter as dimensões do target."""
+        pixmap = QPixmap(400, 300)
+        pixmap.fill(QColor(100, 150, 200))
+        result = VideoProcessor.process_avatar(pixmap, 100, 50, 50, 200, 150)
+        assert result.width() == 200
+        assert result.height() == 150
+
+    def test_zoom_2x_returns_qimage(self):
+        """Zoom 2x retorna um QImage válido."""
+        pixmap = QPixmap(400, 300)
+        pixmap.fill(QColor(100, 150, 200))
+        result = VideoProcessor.process_avatar(pixmap, 200, 50, 50, 200, 200)
+        assert isinstance(result, QImage)
+        assert result.width() == 200
+        assert result.height() == 200
+
+    def test_zoom_max(self):
+        """Zoom máximo (500) não causa crash."""
+        pixmap = QPixmap(400, 300)
+        pixmap.fill(QColor(100, 150, 200))
+        result = VideoProcessor.process_avatar(pixmap, 500, 50, 50, 200, 200)
+        assert isinstance(result, QImage)
+
+    def test_pan_center(self):
+        """Pan centralizado (50/50) com zoom funciona."""
+        pixmap = QPixmap(400, 300)
+        pixmap.fill(QColor(100, 150, 200))
+        result = VideoProcessor.process_avatar(pixmap, 200, 50, 50, 200, 200)
+        assert isinstance(result, QImage)
+
+    def test_pan_extreme_left(self):
+        """Pan horizontal no extremo esquerdo (0) com zoom."""
+        pixmap = QPixmap(400, 300)
+        pixmap.fill(QColor(100, 150, 200))
+        result = VideoProcessor.process_avatar(pixmap, 200, 0, 50, 200, 200)
+        assert isinstance(result, QImage)
+
+    def test_pan_extreme_right(self):
+        """Pan horizontal no extremo direito (100) com zoom."""
+        pixmap = QPixmap(400, 300)
+        pixmap.fill(QColor(100, 150, 200))
+        result = VideoProcessor.process_avatar(pixmap, 200, 100, 50, 200, 200)
+        assert isinstance(result, QImage)
+
+    def test_pan_extreme_top(self):
+        """Pan vertical no extremo superior (0) com zoom."""
+        pixmap = QPixmap(400, 300)
+        pixmap.fill(QColor(100, 150, 200))
+        result = VideoProcessor.process_avatar(pixmap, 200, 50, 0, 200, 200)
+        assert isinstance(result, QImage)
+
+    def test_pan_extreme_bottom(self):
+        """Pan vertical no extremo inferior (100) com zoom."""
+        pixmap = QPixmap(400, 300)
+        pixmap.fill(QColor(100, 150, 200))
+        result = VideoProcessor.process_avatar(pixmap, 200, 50, 100, 200, 200)
+        assert isinstance(result, QImage)
+
+    def test_zero_target_width_returns_none(self):
+        """target_w=0 retorna None."""
+        pixmap = QPixmap(400, 300)
+        pixmap.fill(QColor(100, 150, 200))
+        result = VideoProcessor.process_avatar(pixmap, 200, 50, 50, 0, 200)
+        assert result is None
+
+    def test_zero_target_height_returns_none(self):
+        """target_h=0 retorna None."""
+        pixmap = QPixmap(400, 300)
+        pixmap.fill(QColor(100, 150, 200))
+        result = VideoProcessor.process_avatar(pixmap, 200, 50, 50, 200, 0)
+        assert result is None
+
+    def test_landscape_avatar_with_zoom(self):
+        """Avatar em landscape (16:9) com zoom aplica crop corretamente."""
+        pixmap = QPixmap(640, 360)
+        pixmap.fill(QColor(50, 100, 150))
+        result = VideoProcessor.process_avatar(pixmap, 200, 50, 50, 200, 200)
+        assert isinstance(result, QImage)
+        assert result.width() == 200
+        assert result.height() == 200
+
+    def test_portrait_avatar_with_zoom(self):
+        """Avatar em portrait (9:16) com zoom aplica crop corretamente."""
+        pixmap = QPixmap(360, 640)
+        pixmap.fill(QColor(50, 100, 150))
+        result = VideoProcessor.process_avatar(pixmap, 200, 50, 50, 200, 200)
+        assert isinstance(result, QImage)
+        assert result.width() == 200
+        assert result.height() == 200

@@ -1,28 +1,30 @@
 import os
 import shutil
-from PyQt6.QtCore import QTimer, Qt
+
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QColor, QGuiApplication, QIcon, QIntValidator, QPixmap
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
-    QPushButton,
-    QComboBox,
-    QFormLayout,
-    QLineEdit,
     QApplication,
-    QColorDialog,
-    QFileDialog,
-    QLabel,
-    QSlider,
     QCheckBox,
+    QColorDialog,
+    QComboBox,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
     QMessageBox,
+    QPushButton,
+    QSlider,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtGui import QGuiApplication, QIntValidator, QIcon, QColor, QPixmap
-from utils.functions import resource_path, block_signals
-from classes.views.pip_widget import PipCameraWidget
+
+from classes.core.config_manager import ConfigManager
 from classes.core.device_manager import DeviceManager
 from classes.ui.filter_dialogs import FilterDialog
-from classes.core.config_manager import ConfigManager
+from classes.views.pip_widget import PipCameraWidget
+from utils.functions import block_signals, resource_path
 
 
 class Launcher(QWidget):
@@ -42,7 +44,8 @@ class Launcher(QWidget):
         logo_path = resource_path("assets/pipcam_icon.ico")
         self.setWindowIcon(QIcon(logo_path))
         self.setWindowTitle("PiP Cam Setup")
-        self.setFixedSize(440, 850)
+        self.setFixedWidth(440)
+        self.setMinimumHeight(850)
 
         # ==========================================
         # Sessão de Gerenciamento de Estado
@@ -229,16 +232,77 @@ class Launcher(QWidget):
         self.btn_avatar.setFixedSize(60, 26)
         self.btn_avatar.clicked.connect(self.choose_avatar)
 
-        self.btn_preview_avatar = QPushButton("Testar")
+        self.btn_preview_avatar = QPushButton("Avatar")
         self.btn_preview_avatar.setFixedSize(60, 26)
         self.btn_preview_avatar.setCheckable(True)
         self.btn_preview_avatar.setToolTip("Alterna preview entre Câmera e Avatar")
+        self.btn_preview_avatar.clicked.connect(self._on_avatar_preview_toggled)
         self.btn_preview_avatar.clicked.connect(self.save_current_launcher_settings)
 
         avatar_layout.addWidget(self.avatar_input)
         avatar_layout.addWidget(self.btn_avatar)
         avatar_layout.addWidget(self.btn_preview_avatar)
         self.form.addRow("Foto (Alt+A):", avatar_layout)
+
+        # --- Avatar: Zoom ---
+        self.avatar_zoom_container = QWidget()
+        avatar_zoom_layout = QHBoxLayout(self.avatar_zoom_container)
+        avatar_zoom_layout.setContentsMargins(0, 0, 0, 0)
+        self.avatar_zoom_slider = QSlider(Qt.Orientation.Horizontal)
+        self.avatar_zoom_slider.setMinimum(100)
+        self.avatar_zoom_slider.setMaximum(500)
+        self.avatar_zoom_slider.setValue(100)
+        self.avatar_zoom_label = QLabel("1.0x")
+        self.avatar_zoom_label.setFixedWidth(30)
+        self.avatar_zoom_slider.valueChanged.connect(
+            lambda v: self.avatar_zoom_label.setText(f"{v / 100:.1f}x")
+        )
+        self.avatar_zoom_slider.valueChanged.connect(
+            self.save_current_launcher_settings
+        )
+        avatar_zoom_layout.addWidget(self.avatar_zoom_slider)
+        avatar_zoom_layout.addWidget(self.avatar_zoom_label)
+        self.form.addRow("Avatar Zoom:", self.avatar_zoom_container)
+
+        # --- Avatar: Alinhamento Y ---
+        self.avatar_pan_container = QWidget()
+        avatar_pan_layout = QHBoxLayout(self.avatar_pan_container)
+        avatar_pan_layout.setContentsMargins(0, 0, 0, 0)
+        self.avatar_pan_slider = QSlider(Qt.Orientation.Horizontal)
+        self.avatar_pan_slider.setMinimum(0)
+        self.avatar_pan_slider.setMaximum(100)
+        self.avatar_pan_slider.setValue(50)
+        self.avatar_pan_slider.setSingleStep(5)
+        self.avatar_pan_label = QLabel("Centro")
+        self.avatar_pan_label.setFixedWidth(50)
+        self.avatar_pan_slider.valueChanged.connect(self.update_avatar_pan_label)
+        self.avatar_pan_slider.valueChanged.connect(
+            self.save_current_launcher_settings
+        )
+        avatar_pan_layout.addWidget(self.avatar_pan_slider)
+        avatar_pan_layout.addWidget(self.avatar_pan_label)
+        self.form.addRow("Avatar Alinh. Y:", self.avatar_pan_container)
+
+        # --- Avatar: Alinhamento X ---
+        self.avatar_pan_x_container = QWidget()
+        avatar_pan_x_layout = QHBoxLayout(self.avatar_pan_x_container)
+        avatar_pan_x_layout.setContentsMargins(0, 0, 0, 0)
+        self.avatar_pan_x_slider = QSlider(Qt.Orientation.Horizontal)
+        self.avatar_pan_x_slider.setMinimum(0)
+        self.avatar_pan_x_slider.setMaximum(100)
+        self.avatar_pan_x_slider.setValue(50)
+        self.avatar_pan_x_slider.setSingleStep(5)
+        self.avatar_pan_x_label = QLabel("Centro")
+        self.avatar_pan_x_label.setFixedWidth(50)
+        self.avatar_pan_x_slider.valueChanged.connect(
+            self.update_avatar_pan_x_label
+        )
+        self.avatar_pan_x_slider.valueChanged.connect(
+            self.save_current_launcher_settings
+        )
+        avatar_pan_x_layout.addWidget(self.avatar_pan_x_slider)
+        avatar_pan_x_layout.addWidget(self.avatar_pan_x_label)
+        self.form.addRow("Avatar Alinh. X:", self.avatar_pan_x_container)
 
         # --- Checkboxes Globais ---
         self.check_multi_cam = QCheckBox("Modo Multi-Câmeras (Abrir vários widgets)")
@@ -299,6 +363,12 @@ class Launcher(QWidget):
         self.refresh_launcher_ui()
         self.init_global_hotkeys()
 
+        # Restaura a posição salva da janela (após refresh_launcher_ui carregar as configs)
+        x = self.all_configs.get("launcher_x")
+        y = self.all_configs.get("launcher_y")
+        if x is not None and y is not None:
+            self.move(x, y)
+
     # ==========================================
     # Sessão de Atalhos Globais
     # ==========================================
@@ -337,6 +407,9 @@ class Launcher(QWidget):
             self.check_mic_muted,
             self.btn_preview_avatar,
             self.check_multi_cam,
+            self.avatar_zoom_slider,
+            self.avatar_pan_slider,
+            self.avatar_pan_x_slider,
         ):
             self.populate_cameras()
 
@@ -385,6 +458,22 @@ class Launcher(QWidget):
             audio_sensitivity = self.all_configs.get("audio_sensitivity", 2.0)
             self.audio_sensitivity_slider.setValue(int(audio_sensitivity))
             self.audio_sensitivity_label.setText(f"{audio_sensitivity:.1f}x")
+
+            # Avatar zoom/pan
+            self.avatar_zoom_slider.setValue(
+                self.all_configs.get("avatar_zoom", 100)
+            )
+            self.avatar_pan_slider.setValue(
+                self.all_configs.get("avatar_pan_y", 50)
+            )
+            self.avatar_pan_x_slider.setValue(
+                self.all_configs.get("avatar_pan_x", 50)
+            )
+            self.avatar_zoom_label.setText(
+                f"{self.avatar_zoom_slider.value() / 100:.1f}x"
+            )
+            self.update_avatar_pan_label(self.avatar_pan_slider.value())
+            self.update_avatar_pan_x_label(self.avatar_pan_x_slider.value())
 
         # Dispara manualmente as atualizações visuais
         self.toggle_border_config(border_mode)
@@ -475,6 +564,22 @@ class Launcher(QWidget):
         else:
             self.pan_x_label.setText("Centro")
 
+    def update_avatar_pan_label(self, value):
+        if value < 45:
+            self.avatar_pan_label.setText("Cima")
+        elif value > 55:
+            self.avatar_pan_label.setText("Baixo")
+        else:
+            self.avatar_pan_label.setText("Centro")
+
+    def update_avatar_pan_x_label(self, value):
+        if value < 45:
+            self.avatar_pan_x_label.setText("Esq.")
+        elif value > 55:
+            self.avatar_pan_x_label.setText("Dir.")
+        else:
+            self.avatar_pan_x_label.setText("Centro")
+
     def update_audio_sensitivity_label(self, value):
         self.audio_sensitivity_label.setText(f"{value / 1.0:.1f}x")
 
@@ -485,14 +590,34 @@ class Launcher(QWidget):
         self.form.setRowVisible(self.mic_label, not is_solid)
         self.form.setRowVisible(self.check_mic_muted, not is_solid)
         self.form.setRowVisible(self.audio_sensitivity_container, not is_solid)
+        self._update_avatar_controls_visibility()
 
         # Força o recálculo do layout e ajuste automático da altura
         self.form.invalidate()
         self.form.activate()
         QApplication.processEvents()
-        window = self.window()
-        if window:
-            window.adjustSize()
+        self.setMinimumHeight(max(850, self.sizeHint().height()))
+        self.adjustSize()
+
+    def _on_avatar_preview_toggled(self, checked):
+        """Mostra ou oculta os controles de zoom/pan do avatar."""
+        self._update_avatar_controls_visibility()
+
+    def _update_avatar_controls_visibility(self):
+        """Atualiza a visibilidade dos controles de avatar e redimensiona a janela."""
+        use_avatar = self.btn_preview_avatar.isChecked()
+        has_avatar = bool(self.avatar_input.text().strip())
+        visible = use_avatar and has_avatar
+        self.form.setRowVisible(self.avatar_zoom_container, visible)
+        self.form.setRowVisible(self.avatar_pan_container, visible)
+        self.form.setRowVisible(self.avatar_pan_x_container, visible)
+
+        # Redimensiona a janela após alterar a visibilidade das linhas
+        self.form.invalidate()
+        self.form.activate()
+        QApplication.processEvents()
+        self.setMinimumHeight(max(850, self.sizeHint().height()))
+        self.adjustSize()
 
     def choose_avatar(self):
         """Abre o explorador de arquivos para a seleção de uma imagem."""
@@ -576,6 +701,17 @@ class Launcher(QWidget):
             "audio_sensitivity", self.audio_sensitivity_slider.value()
         )
 
+        # Configurações de Avatar (zoom/pan)
+        self.config_manager.set_global(
+            "avatar_zoom", self.avatar_zoom_slider.value()
+        )
+        self.config_manager.set_global(
+            "avatar_pan_x", self.avatar_pan_x_slider.value()
+        )
+        self.config_manager.set_global(
+            "avatar_pan_y", self.avatar_pan_slider.value()
+        )
+
         # Configurações ESPECÍFICAS de câmera/modo
         cam_idx = self.cam_combo.currentData()
         if cam_idx is None or cam_idx == -1:
@@ -632,6 +768,11 @@ class Launcher(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        # Restaura a posição salva da janela
+        x = self.all_configs.get("launcher_x")
+        y = self.all_configs.get("launcher_y")
+        if x is not None and y is not None:
+            self.move(x, y)
         self.restart_preview()
 
     def hideEvent(self, event):
@@ -639,10 +780,14 @@ class Launcher(QWidget):
         self.stop_preview()
 
     def moveEvent(self, event):
-        """Pausa o preview enquanto a janela está sendo movida para garantir fluidez no SO."""
+        """Pausa o preview enquanto a janela está sendo movida e salva a posição."""
         super().moveEvent(event)
         if self.preview_timer.isActive():
             self.preview_timer.stop()
+        # Salva a posição da janela
+        pos = self.pos()
+        self.config_manager.set_global("launcher_x", pos.x())
+        self.config_manager.set_global("launcher_y", pos.y())
         # Debounce: retoma o preview 50ms após o último movimento
         self.resume_timer.start(50)
 
@@ -699,8 +844,16 @@ class Launcher(QWidget):
         p_w = int(p_h / p_h_ratio)
 
         if use_avatar and avatar_pixmap:
+            avatar_zoom = self.avatar_zoom_slider.value()
+            avatar_pan_x = self.avatar_pan_x_slider.value()
+            avatar_pan_y = self.avatar_pan_slider.value()
+            from classes.core.video_processor import process_avatar
+
+            qimage = process_avatar(
+                avatar_pixmap, avatar_zoom, avatar_pan_x, avatar_pan_y, p_w, p_h
+            )
             pixmap = VideoProcessor.create_masked_pixmap(
-                avatar_pixmap,
+                qimage,
                 p_w,
                 p_h,
                 mode,
@@ -775,6 +928,9 @@ class Launcher(QWidget):
             self.audio_sensitivity_slider,
             self.check_mic_muted,
             self.btn_preview_avatar,
+            self.avatar_zoom_slider,
+            self.avatar_pan_slider,
+            self.avatar_pan_x_slider,
         ):
             self.cam_combo.setCurrentIndex(combo_idx)
             try:
@@ -788,6 +944,9 @@ class Launcher(QWidget):
             self.color_input.setText(pip_obj.border_color)
             self.avatar_input.setText(pip_obj.avatar_path)
             self.btn_preview_avatar.setChecked(pip_obj.use_avatar)
+            self.avatar_zoom_slider.setValue(pip_obj.avatar_zoom)
+            self.avatar_pan_slider.setValue(pip_obj.avatar_pan_y)
+            self.avatar_pan_x_slider.setValue(pip_obj.avatar_pan_x)
             try:
                 self.border_mode_combo.setCurrentText(pip_obj.border_mode)
             except RuntimeError:
@@ -890,6 +1049,9 @@ class Launcher(QWidget):
             self.check_mic_muted.isChecked(),
             self.check_hide_toolbar.isChecked(),
             self.check_show_border.isChecked(),
+            self.avatar_zoom_slider.value(),
+            self.avatar_pan_x_slider.value(),
+            self.avatar_pan_slider.value(),
         )
 
         # Conecta o sinal de fechamento para remover da lista capturando o objeto correto

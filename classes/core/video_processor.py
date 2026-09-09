@@ -1,5 +1,5 @@
-from PyQt6.QtGui import QImage, QPixmap, QPainter, QPainterPath, QColor, QPen
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QColor, QImage, QPainter, QPainterPath, QPen, QPixmap
 
 
 def process_frame(frame, zoom, pan_x, pan_y, target_w, target_h):
@@ -154,6 +154,81 @@ def create_masked_pixmap(
     return out_pixmap
 
 
+def process_avatar(pixmap, zoom, pan_x, pan_y, target_w, target_h):
+    """
+    Aplica zoom e alinhamento (pan) em um QPixmap de avatar, retornando um QImage.
+    A lógica é análoga à process_frame: primeiro recorta com zoom, depois ajusta
+    para o aspect ratio do target usando pan para posicionar o crop.
+
+    Args:
+        pixmap (QPixmap): Imagem do avatar.
+        zoom (int): Nível de zoom (100 a 500), onde 100 é 1x e 500 é 5x.
+        pan_x (int): Alinhamento horizontal (0 a 100).
+        pan_y (int): Alinhamento vertical (0 a 100).
+        target_w (int): Largura desejada da imagem final.
+        target_h (int): Altura desejada da imagem final.
+
+    Returns:
+        QImage: A imagem processada. Retorna None se o pixmap for inválido.
+    """
+    if pixmap is None or pixmap.isNull():
+        return None
+
+    if target_w <= 0 or target_h <= 0:
+        return None
+
+    w_orig = pixmap.width()
+    h_orig = pixmap.height()
+
+    # Passo 1: Aplica zoom recortando da imagem original
+    if zoom > 100:
+        zoom_f = zoom / 100.0
+        new_w = int(w_orig / zoom_f)
+        new_h = int(h_orig / zoom_f)
+
+        pan_x_val = pan_x / 100.0
+        pan_y_val = pan_y / 100.0
+
+        x_o = int((w_orig - new_w) * pan_x_val)
+        y_o = int((h_orig - new_h) * pan_y_val)
+
+        x_o = max(0, min(x_o, w_orig - new_w))
+        y_o = max(0, min(y_o, h_orig - new_h))
+
+        region = pixmap.copy(x_o, y_o, new_w, new_h)
+    else:
+        region = pixmap.copy(0, 0, w_orig, h_orig)
+
+    # Passo 2: Ajusta para o aspect ratio do target usando pan para posicionar
+    w_f = region.width()
+    h_f = region.height()
+    target_ratio = target_w / target_h
+    source_ratio = w_f / h_f
+
+    if source_ratio > target_ratio:
+        # Imagem é mais larga que o target — crop horizontal, pan controla posição X
+        crop_w = int(h_f * target_ratio)
+        max_offset = w_f - crop_w
+        offset = int(max_offset * (pan_x / 100.0))
+        region = region.copy(offset, 0, crop_w, h_f)
+    else:
+        # Imagem é mais alta que o target — crop vertical, pan controla posição Y
+        crop_h = int(w_f / target_ratio)
+        max_offset = h_f - crop_h
+        offset = int(max_offset * (pan_y / 100.0))
+        region = region.copy(0, offset, w_f, crop_h)
+
+    # Passo 3: Redimensiona para o tamanho final
+    result = region.scaled(
+        target_w,
+        target_h,
+        Qt.AspectRatioMode.IgnoreAspectRatio,
+        Qt.TransformationMode.SmoothTransformation,
+    )
+    return result.toImage()
+
+
 class VideoProcessor:
     process_frame = staticmethod(process_frame)
+    process_avatar = staticmethod(process_avatar)
     create_masked_pixmap = staticmethod(create_masked_pixmap)
