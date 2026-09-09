@@ -10,48 +10,58 @@ class TestInitAppEnvironment:
     def test_creates_avatar_directory(self, tmp_path, monkeypatch):
         """Verifica que init_app_environment() cria o diretório de avatares se ele não existir."""
         avatar_dir = tmp_path / "avatars"
-        with patch.object(uf, "AVATAR_DIR", str(avatar_dir)):
-            with patch.object(uf, "BASE_DIR", str(tmp_path)):
-                uf.init_app_environment()
-                assert avatar_dir.exists()
+        with (
+            patch.object(uf, "AVATAR_DIR", str(avatar_dir)),
+            patch.object(uf, "BASE_DIR", str(tmp_path)),
+        ):
+            uf.init_app_environment()
+            assert avatar_dir.exists()
 
     def test_calls_migration(self, tmp_path, monkeypatch):
         """Confirma que init_app_environment() executa a função de migração de arquivos antigos."""
         avatar_dir = tmp_path / "avatars"
-        with patch.object(uf, "AVATAR_DIR", str(avatar_dir)):
-            with patch.object(uf, "BASE_DIR", str(tmp_path)):
-                with patch.object(uf, "_migrate_old_files") as mock_migrate:
-                    uf.init_app_environment()
-                    mock_migrate.assert_called_once()
+        with (
+            patch.object(uf, "AVATAR_DIR", str(avatar_dir)),
+            patch.object(uf, "BASE_DIR", str(tmp_path)),
+            patch.object(uf, "_migrate_old_files") as mock_migrate,
+        ):
+            uf.init_app_environment()
+            mock_migrate.assert_called_once()
 
 
 class TestMigrateOldFiles:
     def test_skips_migration_when_old_config_not_exists(self, tmp_path):
         """Quando pip_config.json antigo não existe, _migrate_old_files() não executa nenhuma migração."""
-        with patch.object(uf, "CONFIG_FILE", str(tmp_path / "new" / "pip_config.json")):
-            with patch.object(uf, "AVATAR_DIR", str(tmp_path / "avatars")):
-                with patch("shutil.move") as mock_move:
-                    uf._migrate_old_files()
-                    mock_move.assert_not_called()
+        with (
+            patch.object(uf, "CONFIG_FILE", str(tmp_path / "new" / "pip_config.json")),
+            patch.object(uf, "AVATAR_DIR", str(tmp_path / "avatars")),
+            patch("shutil.move") as mock_move,
+        ):
+            uf._migrate_old_files()
+            mock_move.assert_not_called()
 
     def test_skips_avatar_migration_when_old_dir_not_exists(self, tmp_path):
         """Quando a pasta 'avatar' antiga não existe, avatares não são migrados."""
-        with patch.object(uf, "CONFIG_FILE", str(tmp_path / "nonexistent.json")):
-            with patch.object(uf, "AVATAR_DIR", str(tmp_path / "avatars")):
-                with patch("shutil.move") as mock_move:
-                    uf._migrate_old_files()
-                    mock_move.assert_not_called()
+        with (
+            patch.object(uf, "CONFIG_FILE", str(tmp_path / "nonexistent.json")),
+            patch.object(uf, "AVATAR_DIR", str(tmp_path / "avatars")),
+            patch("shutil.move") as mock_move,
+        ):
+            uf._migrate_old_files()
+            mock_move.assert_not_called()
 
 
 class TestLoadAllConfigs:
     def test_returns_defaults_when_file_not_exists(self, tmp_path):
         """Quando o arquivo de configuração não existe, load_all_configs() retorna as configurações padrão."""
         nonexistent = tmp_path / "nonexistent.json"
-        with patch.object(uf, "CONFIG_FILE", str(nonexistent)):
-            with patch.object(uf, "save_all_configs") as mock_save:
-                result = uf.load_all_configs()
-                assert result == uf.DEFAULT_CONFIGS
-                mock_save.assert_called_once()
+        with (
+            patch.object(uf, "CONFIG_FILE", str(nonexistent)),
+            patch.object(uf, "save_all_configs") as mock_save,
+        ):
+            result = uf.load_all_configs()
+            assert result == uf.DEFAULT_CONFIGS
+            mock_save.assert_called_once()
 
     def test_loads_existing_file(self, tmp_path):
         """Quando o arquivo existe e é válido, load_all_configs() retorna seu conteúdo mergeado com defaults."""
@@ -82,32 +92,38 @@ class TestSaveAllConfigs:
         base_dir = tmp_path / "new_dir"
         config_file = base_dir / "config.json"
 
-        with patch.object(uf, "BASE_DIR", str(base_dir)):
-            with patch.object(uf, "CONFIG_FILE", str(config_file)):
-                uf.save_all_configs({"test": True})
-                assert config_file.exists()
+        with (
+            patch.object(uf, "BASE_DIR", str(base_dir)),
+            patch.object(uf, "CONFIG_FILE", str(config_file)),
+        ):
+            uf.save_all_configs({"test": True})
+            assert config_file.exists()
 
     def test_saves_valid_json(self, tmp_path):
         """Confirma que o arquivo salvo é um JSON válido e legível."""
         base_dir = tmp_path
         config_file = base_dir / "config.json"
 
-        with patch.object(uf, "BASE_DIR", str(base_dir)):
-            with patch.object(uf, "CONFIG_FILE", str(config_file)):
-                uf.save_all_configs({"key": "value"})
+        with (
+            patch.object(uf, "BASE_DIR", str(base_dir)),
+            patch.object(uf, "CONFIG_FILE", str(config_file)),
+        ):
+            uf.save_all_configs({"key": "value"})
 
-                with open(config_file, "r") as f:
-                    data = json.load(f)
-                    assert data["key"] == "value"
+            with open(config_file, "r") as f:
+                data = json.load(f)
+                assert data["key"] == "value"
 
     def test_handles_save_error(self, tmp_path, capsys):
         """Se ocorrer erro ao salvar (ex: permissões), a exceção é tratada e mensagem é impressa."""
-        with patch.object(uf, "BASE_DIR", "/root/restricted"):
-            with patch.object(uf, "CONFIG_FILE", "/root/restricted/config.json"):
-                with patch("os.makedirs", side_effect=PermissionError("Access denied")):
-                    uf.save_all_configs({"test": True})
-                    captured = capsys.readouterr()
-                    assert "Erro ao salvar configurações" in captured.out
+        with (
+            patch.object(uf, "BASE_DIR", "/root/restricted"),
+            patch.object(uf, "CONFIG_FILE", "/root/restricted/config.json"),
+            patch("os.makedirs", side_effect=PermissionError("Access denied")),
+        ):
+            uf.save_all_configs({"test": True})
+            captured = capsys.readouterr()
+            assert "Erro ao salvar configurações" in captured.out
 
 
 class TestResourcePath:

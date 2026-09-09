@@ -7,29 +7,35 @@ class TestGetNextAvailableCamera:
     def test_returns_next_camera(self):
         """Verifica que a próxima câmera na lista é selecionada ao passar o índice atual (0 -> Camera B)."""
         devices = ["Camera A", "Camera B", "Camera C"]
-        with patch.object(DeviceManager, "get_cameras", return_value=devices):
-            with patch.object(DeviceManager, "get_camera_index", return_value=1):
-                new_idx, new_name = DeviceManager.get_next_available_camera(0, [])
-                assert new_name == "Camera B"
-                assert new_idx == 1
+        with (
+            patch.object(DeviceManager, "get_cameras", return_value=devices),
+            patch.object(DeviceManager, "get_camera_index", return_value=1),
+        ):
+            new_idx, new_name = DeviceManager.get_next_available_camera(0, [])
+            assert new_name == "Camera B"
+            assert new_idx == 1
 
     def test_skips_ignored_cameras(self):
         """Confirma que câmeras na lista de ignoradas são puladas na seleção (Camera B ignorada -> vai para Camera C)."""
         devices = ["Camera A", "Camera B", "Camera C"]
-        with patch.object(DeviceManager, "get_cameras", return_value=devices):
-            with patch.object(DeviceManager, "get_camera_index", return_value=2):
-                new_idx, new_name = DeviceManager.get_next_available_camera(
-                    0, ["Camera B"]
-                )
-                assert new_name == "Camera C"
+        with (
+            patch.object(DeviceManager, "get_cameras", return_value=devices),
+            patch.object(DeviceManager, "get_camera_index", return_value=2),
+        ):
+            _new_idx, new_name = DeviceManager.get_next_available_camera(
+                0, ["Camera B"]
+            )
+            assert new_name == "Camera C"
 
     def test_cycles_back_to_first(self):
         """Testa que ao chegar na última câmera, a seleção cicla de volta para a primeira."""
         devices = ["Camera A", "Camera B"]
-        with patch.object(DeviceManager, "get_cameras", return_value=devices):
-            with patch.object(DeviceManager, "get_camera_index", return_value=0):
-                new_idx, new_name = DeviceManager.get_next_available_camera(1, [])
-                assert new_name == "Camera A"
+        with (
+            patch.object(DeviceManager, "get_cameras", return_value=devices),
+            patch.object(DeviceManager, "get_camera_index", return_value=0),
+        ):
+            _new_idx, new_name = DeviceManager.get_next_available_camera(1, [])
+            assert new_name == "Camera A"
 
     def test_returns_minus_one_when_no_cameras(self):
         """Garante que retorna (-1, None) quando não há nenhuma câmera disponível no sistema."""
@@ -59,31 +65,37 @@ class TestGetNextAvailableCamera:
     def test_current_camera_is_ignored_returns_next(self):
         """Quando a câmera atual está na lista de ignoradas, seleciona a próxima disponível."""
         devices = ["Camera A", "Camera B"]
-        with patch.object(DeviceManager, "get_cameras", return_value=devices):
-            with patch.object(DeviceManager, "get_camera_index", side_effect=[1, 0]):
-                new_idx, new_name = DeviceManager.get_next_available_camera(
-                    0, ["Camera A"]
-                )
-                assert new_name == "Camera B"
+        with (
+            patch.object(DeviceManager, "get_cameras", return_value=devices),
+            patch.object(DeviceManager, "get_camera_index", side_effect=[1, 0]),
+        ):
+            _new_idx, new_name = DeviceManager.get_next_available_camera(
+                0, ["Camera A"]
+            )
+            assert new_name == "Camera B"
 
     def test_invalid_current_index(self):
         """Quando o índice atual é inválido (fora do range), seleciona a primeira câmera disponível."""
         devices = ["Camera A", "Camera B"]
-        with patch.object(DeviceManager, "get_cameras", return_value=devices):
-            with patch.object(DeviceManager, "get_camera_index", return_value=0):
-                new_idx, new_name = DeviceManager.get_next_available_camera(99, [])
-                assert new_idx == 0
-                assert new_name == "Camera A"
+        with (
+            patch.object(DeviceManager, "get_cameras", return_value=devices),
+            patch.object(DeviceManager, "get_camera_index", return_value=0),
+        ):
+            new_idx, new_name = DeviceManager.get_next_available_camera(99, [])
+            assert new_idx == 0
+            assert new_name == "Camera A"
 
 
 class TestGetCameraIndex:
     def test_finds_camera_by_name(self):
         """Em modo não-Windows, get_camera_index retorna -1 para nomes que não seguem o padrão 'Camera N'."""
         devices = ["Camera A", "Camera B", "Camera C"]
-        with patch.object(DeviceManager, "get_cameras", return_value=devices):
-            with patch("classes.core.device_manager.IS_WINDOWS", False):
-                idx = DeviceManager.get_camera_index("Camera B")
-                assert idx == -1
+        with (
+            patch.object(DeviceManager, "get_cameras", return_value=devices),
+            patch("classes.core.device_manager.IS_WINDOWS", False),
+        ):
+            idx = DeviceManager.get_camera_index("Camera B")
+            assert idx == -1
 
     def test_finds_linux_camera_by_name(self):
         """Em modo Linux/Mac, extrai o índice numérico do nome genérico 'Camera N' e retorna corretamente."""
@@ -101,20 +113,24 @@ class TestGetCameraIndex:
             "OBS Virtual",
         ]
 
-        with patch("classes.core.device_manager.IS_WINDOWS", True):
-            with patch("pygrabber.dshow_graph.FilterGraph", return_value=mock_graph):
-                idx = DeviceManager.get_camera_index("USB Camera")
-                assert idx == 1
+        with (
+            patch("classes.core.device_manager.IS_WINDOWS", True),
+            patch("pygrabber.dshow_graph.FilterGraph", return_value=mock_graph),
+        ):
+            idx = DeviceManager.get_camera_index("USB Camera")
+            assert idx == 1
 
     def test_windows_returns_minus_one_when_not_found(self):
         """Em Windows, get_camera_index retorna -1 quando o nome não existe na lista do pygrabber."""
         mock_graph = MagicMock()
         mock_graph.get_input_devices.return_value = ["Webcam HD", "USB Camera"]
 
-        with patch("classes.core.device_manager.IS_WINDOWS", True):
-            with patch("pygrabber.dshow_graph.FilterGraph", return_value=mock_graph):
-                idx = DeviceManager.get_camera_index("Nonexistent Camera")
-                assert idx == -1
+        with (
+            patch("classes.core.device_manager.IS_WINDOWS", True),
+            patch("pygrabber.dshow_graph.FilterGraph", return_value=mock_graph),
+        ):
+            idx = DeviceManager.get_camera_index("Nonexistent Camera")
+            assert idx == -1
 
     def test_windows_returns_minus_one_on_pygrabber_error(self):
         """Em Windows, get_camera_index retorna -1 quando pygrabber lança uma exceção (COM error)."""
@@ -228,7 +244,7 @@ class TestGetCameras:
             for i, cap in enumerate(mock_caps):
                 cap.isOpened.return_value = i in (0, 2)
 
-            with patch("cv2.VideoCapture", side_effect=mock_caps) as MockVideo:
+            with patch("cv2.VideoCapture", side_effect=mock_caps):
                 cameras = DeviceManager.get_cameras()
                 assert cameras == ["Camera 0", "Camera 2"]
 
@@ -237,20 +253,24 @@ class TestOpenCamera:
     def test_windows_opens_with_dshow(self):
         """Em Windows, open_camera usa a flag CAP_DSHOW para melhor compatibilidade."""
         mock_cap = MagicMock()
-        with patch("classes.core.device_manager.IS_WINDOWS", True):
-            with patch("cv2.VideoCapture", return_value=mock_cap) as MockVideo:
-                result = DeviceManager.open_camera(0)
-                MockVideo.assert_called_once_with(0, 700)
-                assert result == mock_cap
+        with (
+            patch("classes.core.device_manager.IS_WINDOWS", True),
+            patch("cv2.VideoCapture", return_value=mock_cap) as MockVideo,
+        ):
+            result = DeviceManager.open_camera(0)
+            MockVideo.assert_called_once_with(0, 700)
+            assert result == mock_cap
 
     def test_linux_opens_without_flags(self):
         """Em Linux/Mac, open_camera abre o dispositivo sem flags adicionais."""
         mock_cap = MagicMock()
-        with patch("classes.core.device_manager.IS_WINDOWS", False):
-            with patch("cv2.VideoCapture", return_value=mock_cap) as MockVideo:
-                result = DeviceManager.open_camera(0)
-                MockVideo.assert_called_once_with(0)
-                assert result == mock_cap
+        with (
+            patch("classes.core.device_manager.IS_WINDOWS", False),
+            patch("cv2.VideoCapture", return_value=mock_cap) as MockVideo,
+        ):
+            result = DeviceManager.open_camera(0)
+            MockVideo.assert_called_once_with(0)
+            assert result == mock_cap
 
     def test_open_invalid_index_returns_cap(self):
         """open_camera com índice inválido retorna um objeto VideoCapture (não lança exceção)."""
