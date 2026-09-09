@@ -4,7 +4,7 @@
 
 ## Visão Geral
 
-O projeto PiP Cam possui **125 testes automatizados** distribuídos em 8 arquivos de teste, cobrindo **93%** do código-fonte. A suíte utiliza **pytest** como framework principal, **pytest-qt** para testes de interface gráfica e **unittest.mock** para simulação de hardware e filesystem.
+O projeto PiP Cam possui **142 testes automatizados** distribuídos em 9 arquivos de teste, cobrindo **93%** do código-fonte. A suíte utiliza **pytest** como framework principal, **pytest-qt** para testes de interface gráfica e **unittest.mock** para simulação de hardware e filesystem.
 
 ### Como Executar
 
@@ -30,14 +30,14 @@ uv run pytest tests/test_video_processor.py::TestProcessFrame::test_zoom_applies
 ```text
 tests/
 ├── conftest.py                  # Fixtures globais (isolamento de filesystem)
-├── test_video_processor.py      # Processamento de imagem (24 testes)
-├── test_shortcut_signals.py     # Sinais de atalhos do teclado (11 testes)
-├── test_device_manager.py       # Gerenciamento de hardware (22 testes)
-├── test_config_manager.py       # Gerenciamento de configurações (14 testes)
-├── test_audio_analyzer.py       # Análise de áudio/microfone (13 testes)
+├── test_video_processor.py      # Processamento de imagem (31 testes)
+├── test_shortcut_signals.py     # Sinais de atalhos do teclado (13 testes)
+├── test_device_manager.py       # Gerenciamento de hardware (25 testes)
+├── test_config_manager.py       # Gerenciamento de configurações (17 testes)
+├── test_audio_analyzer.py       # Análise de áudio/microfone (15 testes)
 ├── test_filter_dialogs.py       # Diálogo de filtragem de dispositivos (12 testes)
-├── test_floating_toolbar.py     # Barra de ferramentas flutuante (13 testes)
-└── test_functions.py            # Utilitários e I/O (16 testes)
+├── test_floating_toolbar.py     # Barra de ferramentas flutuante (17 testes)
+└── test_functions.py            # Utilitários e I/O (14 testes)
 ```
 
 ## Configuração Global (`conftest.py`)
@@ -54,7 +54,7 @@ Redireciona todas as constantes de caminho do módulo `utils/functions.py` (`BAS
 ## 1. Processamento de Vídeo (`test_video_processor.py`)
 
 **Classe testada:** `VideoProcessor` (em `classes/core/video_processor.py`)
-**Total de testes:** 24
+**Total de testes:** 31
 
 ### TestProcessFrame — Processamento de Frames
 
@@ -93,7 +93,7 @@ Redireciona todas as constantes de caminho do módulo `utils/functions.py` (`BAS
 ## 2. Sinais de Atalhos (`test_shortcut_signals.py`)
 
 **Classe testada:** `ShortcutSignals` (em `classes/shortcut_signals.py`)
-**Total de testes:** 11
+**Total de testes:** 13
 
 | Teste | Descrição |
 |---|---|
@@ -112,7 +112,7 @@ Redireciona todas as constantes de caminho do módulo `utils/functions.py` (`BAS
 ## 3. Gerenciamento de Dispositivos (`test_device_manager.py`)
 
 **Classe testada:** `DeviceManager` (em `classes/core/device_manager.py`)
-**Total de testes:** 22
+**Total de testes:** 25
 
 ### TestGetNextAvailableCamera — Seleção Cíclica de Câmera
 
@@ -171,7 +171,7 @@ Redireciona todas as constantes de caminho do módulo `utils/functions.py` (`BAS
 ## 4. Gerenciamento de Configurações (`test_config_manager.py`)
 
 **Classe testada:** `ConfigManager` (em `classes/core/config_manager.py`)
-**Total de testes:** 14
+**Total de testes:** 17
 
 > **Nota:** Este arquivo usa a fixture `reset_config_manager` (definida localmente) que reseta o Singleton do `ConfigManager` entre cada teste, evitando contaminação de estado.
 
@@ -269,7 +269,7 @@ Redireciona todas as constantes de caminho do módulo `utils/functions.py` (`BAS
 ## 7. Barra de Ferramentas Flutuante (`test_floating_toolbar.py`)
 
 **Classe testada:** `FloatingToolbar` (em `classes/ui/floating_toolbar.py`)
-**Total de testes:** 13
+**Total de testes:** 17
 
 | Teste | Descrição |
 |---|---|
@@ -290,7 +290,7 @@ Redireciona todas as constantes de caminho do módulo `utils/functions.py` (`BAS
 ## 8. Utilitários e I/O (`test_functions.py`)
 
 **Módulo testado:** `utils/functions.py`
-**Total de testes:** 16
+**Total de testes:** 14
 
 ### TestInitAppEnvironment — Inicialização do Ambiente
 
@@ -341,7 +341,7 @@ Redireciona todas as constantes de caminho do módulo `utils/functions.py` (`BAS
 | `filter_dialogs.py` | **100%** | Completo |
 | `floating_toolbar.py` | **100%** | Completo |
 | `functions.py` | 64% | 30 linhas restantes (migração no import) |
-| **TOTAL** | **93%** | **125 testes passando** |
+| **TOTAL** | **93%** | **142 testes passando** |
 
 ## Análise de Qualidade dos Testes
 
