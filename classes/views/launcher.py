@@ -54,6 +54,10 @@ class Launcher(QWidget):
         self.all_configs = self.config_manager.configs
         self.preview_cap = None
 
+        # Indicador de nível de áudio no Launcher
+        self.mic_preview_analyzer = None
+        self.mic_level_threshold = 0.01
+
         self.preview_timer = QTimer()
         self.preview_timer.timeout.connect(self.update_preview)
 
@@ -186,9 +190,25 @@ class Launcher(QWidget):
         self.btn_filter_mic.clicked.connect(self.open_mic_filters)
         self.populate_mics()
         mic_top_layout.addWidget(self.mic_combo)
+
+        self.mic_level_circle = QLabel()
+        self.mic_level_circle.setFixedSize(14, 14)
+        self.mic_level_circle.setStyleSheet(
+            "QLabel {"
+            "  background-color: #2d2d2d;"
+            "  border: none;"
+            "  padding: 0px;"
+            "  margin: 0px;"
+            "  border-radius: 7px;"
+            "}"
+        )
+        self.mic_level_circle.setToolTip("Indicador de nível de áudio")
+        mic_top_layout.addWidget(self.mic_level_circle, alignment=Qt.AlignmentFlag.AlignCenter)
+
         mic_top_layout.addWidget(self.btn_filter_mic)
 
         self.mic_combo.currentIndexChanged.connect(self.save_current_launcher_settings)
+        self.mic_combo.currentIndexChanged.connect(self._on_mic_combo_changed)
         self.check_mic_muted = QCheckBox("Iniciar Mutado (Alt+M para Alternar)")
         self.check_mic_muted.setMinimumHeight(30)
         self.check_mic_muted.setStyleSheet("padding-bottom: 5px;")
@@ -213,6 +233,9 @@ class Launcher(QWidget):
         )
         self.audio_sensitivity_slider.valueChanged.connect(
             self.save_current_launcher_settings
+        )
+        self.audio_sensitivity_slider.valueChanged.connect(
+            self._on_sensitivity_changed
         )
         audio_sensitivity_layout.addWidget(self.audio_sensitivity_slider)
         audio_sensitivity_layout.addWidget(self.audio_sensitivity_label)
@@ -496,7 +519,7 @@ class Launcher(QWidget):
                 self.config_manager.save_now()
                 self.all_configs = self.config_manager.configs
                 self.populate_cameras()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao abrir filtros: {e}")
 
     def open_mic_filters(self):
@@ -512,7 +535,7 @@ class Launcher(QWidget):
                 self.config_manager.save_now()
                 self.all_configs = self.config_manager.configs
                 self.populate_mics()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao abrir filtros de mic: {e}")
 
     def populate_cameras(self):
@@ -525,7 +548,7 @@ class Launcher(QWidget):
             for name in all_devices:
                 if name not in ignored:
                     self.cam_combo.addItem(name, DeviceManager.get_camera_index(name))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao carregar câmeras: {e}")
 
     def populate_mics(self):
@@ -537,7 +560,7 @@ class Launcher(QWidget):
             for name in all_mics:
                 if name not in ignored:
                     self.mic_combo.addItem(name, DeviceManager.get_mic_info(name))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao listar microfones: {e}")
             self.mic_combo.addItem("Erro ao detectar", -1)
 
@@ -582,6 +605,72 @@ class Launcher(QWidget):
 
     def update_audio_sensitivity_label(self, value):
         self.audio_sensitivity_label.setText(f"{value / 1.0:.1f}x")
+
+    # ==========================================
+    # Sessão de Preview de Áudio no Launcher
+    # ==========================================
+
+    def _on_mic_combo_changed(self, index):
+        """Reinicia o preview de áudio quando o microfone selecionado muda."""
+        self._stop_mic_preview()
+        self._start_mic_preview()
+
+    def _on_sensitivity_changed(self, value):
+        """Atualiza a sensibilidade do analisador de áudio ativo."""
+        if self.mic_preview_analyzer:
+            self.mic_preview_analyzer.set_sensitivity(float(value))
+
+    def _start_mic_preview(self):
+        """Inicia o analisador de áudio para o microfone selecionado no combo."""
+        mic_device = self.mic_combo.currentData()
+        if mic_device is None or mic_device == -1:
+            return
+        try:
+            import sys
+            from io import StringIO
+
+            from classes.core.audio_analyzer import AudioAnalyzer
+
+            self.mic_preview_analyzer = AudioAnalyzer(mic_device)
+            sensitivity = float(self.audio_sensitivity_slider.value())
+            self.mic_preview_analyzer.set_sensitivity(sensitivity)
+            self.mic_preview_analyzer.level_changed.connect(self._on_mic_level_changed)
+
+            # Suprime mensagens de erro do AudioAnalyzer (mics incompatíveis)
+            _stdout = sys.stdout
+            sys.stdout = StringIO()
+            try:
+                self.mic_preview_analyzer.start()
+            finally:
+                sys.stdout = _stdout
+
+            if self.mic_preview_analyzer.stream is None:
+                self.mic_preview_analyzer = None
+        except Exception:  # noqa: BLE001
+            self.mic_preview_analyzer = None
+
+    def _stop_mic_preview(self):
+        """Para o analisador de áudio e reseta a cor do indicador."""
+        if self.mic_preview_analyzer:
+            self.mic_preview_analyzer.stop()
+            self.mic_preview_analyzer = None
+        self._set_circle_color("#2d2d2d")
+
+    def _on_mic_level_changed(self, level):
+        """Atualiza a cor do círculo indicador com base no nível de áudio detectado."""
+        color = "#2ecc71" if level > self.mic_level_threshold else "#2d2d2d"
+        self._set_circle_color(color)
+
+    def _set_circle_color(self, color):
+        """Aplica a cor de fundo ao círculo indicador mantendo o formato circular."""
+        self.mic_level_circle.setStyleSheet(
+            f"QLabel {{ background-color: {color}; border: none; padding: 0px; margin: 0px; border-radius: 7px; }}"
+        )
+
+    def closeEvent(self, event):
+        """Limpa recursos ao fechar o Launcher."""
+        self._stop_mic_preview()
+        super().closeEvent(event)
 
     def toggle_border_config(self, mode_text):
         """Altera dinamicamente os inputs que ficam visíveis com base no modo da borda."""
@@ -634,7 +723,7 @@ class Launcher(QWidget):
                 shutil.copy(file_path, dest_path)
                 self.avatar_input.setText(dest_path)
                 self.save_current_launcher_settings()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"Erro ao copiar avatar: {e}")
 
     def choose_color(self):
@@ -774,10 +863,12 @@ class Launcher(QWidget):
         if x is not None and y is not None:
             self.move(x, y)
         self.restart_preview()
+        self._start_mic_preview()
 
     def hideEvent(self, event):
         super().hideEvent(event)
         self.stop_preview()
+        self._stop_mic_preview()
 
     def moveEvent(self, event):
         """Pausa o preview enquanto a janela está sendo movida e salva a posição."""
@@ -971,7 +1062,7 @@ class Launcher(QWidget):
             for pip in list(self.active_pips):
                 try:
                     pip.close()
-                except:
+                except Exception:  # noqa: BLE001, S110
                     pass
             self.active_pips = []
         else:
@@ -1003,7 +1094,6 @@ class Launcher(QWidget):
 
         self.save_current_launcher_settings()
 
-        mode_cfg = self.config_manager.get_mode_config(mode_key, mode)
         use_avatar_default = self.btn_preview_avatar.isChecked()
 
         screen = QGuiApplication.primaryScreen().geometry()  # type: ignore
@@ -1111,7 +1201,7 @@ class Launcher(QWidget):
             for pip in list(self.active_pips):
                 try:
                     pip.close()
-                except:
+                except Exception:  # noqa: BLE001, S110
                     pass
             self.active_pips = []
 
@@ -1127,5 +1217,5 @@ class Launcher(QWidget):
             )
             self.close()
             QGuiApplication.quit()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             QMessageBox.critical(self, "Erro", f"Erro ao resetar: {e}")
