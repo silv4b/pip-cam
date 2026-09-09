@@ -1,4 +1,5 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from classes.core.device_manager import DeviceManager
 
 
@@ -117,13 +118,12 @@ class TestGetCameraIndex:
 
     def test_windows_returns_minus_one_on_pygrabber_error(self):
         """Em Windows, get_camera_index retorna -1 quando pygrabber lança uma exceção (COM error)."""
-        with patch("classes.core.device_manager.IS_WINDOWS", True):
-            with patch(
-                "pygrabber.dshow_graph.FilterGraph",
-                side_effect=Exception("COM error"),
-            ):
-                idx = DeviceManager.get_camera_index("Webcam HD")
-                assert idx == -1
+        with patch("classes.core.device_manager.IS_WINDOWS", True), patch(
+            "pygrabber.dshow_graph.FilterGraph",
+            side_effect=Exception("COM error"),
+        ):
+            idx = DeviceManager.get_camera_index("Webcam HD")
+            assert idx == -1
 
 
 class TestGetMicrophones:
@@ -212,15 +212,14 @@ class TestGetCameras:
 
     def test_windows_returns_empty_on_error(self, capsys):
         """Em Windows, se pygrabber falhar, get_cameras retorna lista vazia e imprime erro."""
-        with patch("classes.core.device_manager.IS_WINDOWS", True):
-            with patch(
-                "pygrabber.dshow_graph.FilterGraph",
-                side_effect=Exception("COM error"),
-            ):
-                cameras = DeviceManager.get_cameras()
-                assert cameras == []
-                captured = capsys.readouterr()
-                assert "Erro ao listar câmeras no Windows" in captured.out
+        with patch("classes.core.device_manager.IS_WINDOWS", True), patch(
+            "pygrabber.dshow_graph.FilterGraph",
+            side_effect=Exception("COM error"),
+        ):
+            cameras = DeviceManager.get_cameras()
+            assert cameras == []
+            captured = capsys.readouterr()
+            assert "Erro ao listar câmeras no Windows" in captured.out
 
     def test_linux_scans_opencv_indices(self):
         """Em Linux/Mac, get_cameras faz scan nos índices do OpenCV e retorna nomes genéricos."""

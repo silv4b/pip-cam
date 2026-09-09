@@ -1,4 +1,5 @@
 from PyQt6.QtCore import Qt
+
 from classes.ui.filter_dialogs import FilterDialog
 
 

@@ -1,14 +1,14 @@
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QDialog,
-    QVBoxLayout,
+    QDialogButtonBox,
+    QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
-    QDialogButtonBox,
-    QHBoxLayout,
     QPushButton,
+    QVBoxLayout,
 )
-from PyQt6.QtCore import Qt
 
 
 class FilterDialog(QDialog):
@@ -33,7 +33,7 @@ class FilterDialog(QDialog):
         self.setFixedHeight(400)
         self.layout = QVBoxLayout(self)
 
-        self.label = QLabel(f"Selecione os itens que deseja OCULTAR:")
+        self.label = QLabel("Selecione os itens que deseja OCULTAR:")
         self.layout.addWidget(self.label)
 
         # ==========================================

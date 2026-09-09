@@ -1,6 +1,7 @@
-from utils.functions import IS_WINDOWS
-import sounddevice as sd
 import cv2
+import sounddevice as sd
+
+from utils.functions import IS_WINDOWS
 
 
 class DeviceManager:

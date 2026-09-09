@@ -1,4 +1,3 @@
-import pytest
 from classes.shortcut_signals import ShortcutSignals
 
 

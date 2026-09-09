@@ -1,8 +1,8 @@
-import pytest
 import json
 import os
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 import utils.functions as uf
 
 

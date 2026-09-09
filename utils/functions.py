@@ -1,8 +1,8 @@
 import json
-import sys
 import os
-import shutil
 import platform
+import shutil
+import sys
 from contextlib import contextmanager
 
 # ==========================================

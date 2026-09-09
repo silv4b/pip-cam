@@ -1,9 +1,10 @@
 import sys
-from PyQt6.QtWidgets import QApplication, QSplashScreen
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QPixmap
 
 import qt_themes
+from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QTimer
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import QApplication, QSplashScreen
+
 from utils.functions import init_app_environment, resource_path
 
 
@@ -12,8 +13,8 @@ def load_heavy_modules():
     Carrega módulos pesados de forma atrasada para melhorar o tempo de inicialização da splash screen.
     """
     # Importação atrasada de módulos que exigem maior processamento ou I/O
-    from classes.views.launcher import Launcher
     from classes.core.config_manager import ConfigManager
+    from classes.views.launcher import Launcher
 
     return Launcher, ConfigManager
 

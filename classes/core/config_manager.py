@@ -1,5 +1,6 @@
-from utils.functions import load_all_configs, save_all_configs
 from PyQt6.QtCore import QTimer
+
+from utils.functions import load_all_configs, save_all_configs
 
 
 class ConfigManager:
@@ -17,7 +18,7 @@ class ConfigManager:
         Inicializa o timer de salvamento com debounce.
         """
         if cls._instance is None:
-            cls._instance = super(ConfigManager, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance.configs = load_all_configs()
 
             # Timer de Debounce para salvamento automático

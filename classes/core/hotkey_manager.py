@@ -1,4 +1,5 @@
 import keyboard
+
 from classes.shortcut_signals import ShortcutSignals
 
 
@@ -16,7 +17,7 @@ class HotkeyManager:
         Garante a criação de apenas uma instância da classe (Singleton).
         """
         if cls._instance is None:
-            cls._instance = super(HotkeyManager, cls).__new__(cls)
+            cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
