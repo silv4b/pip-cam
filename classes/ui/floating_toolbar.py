@@ -28,8 +28,8 @@ class FloatingToolbar(QWidget):
             parent (QWidget, optional): O Widget pai (geralmente o PipCameraWidget).
         """
         super().__init__(parent)
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(5, 5, 5, 5)
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(5, 5, 5, 5)
 
         # ==========================================
         # Sessão de Layout Superior (Ajustes Visuais)
@@ -61,8 +61,8 @@ class FloatingToolbar(QWidget):
         self.row2.addWidget(self.btn_border_mode)
         self.row2.addWidget(self.btn_cam)
 
-        self.layout.addLayout(self.row1)
-        self.layout.addLayout(self.row2)
+        self._layout.addLayout(self.row1)
+        self._layout.addLayout(self.row2)
 
         # ==========================================
         # Sessão de Conexões Internas de Eventos

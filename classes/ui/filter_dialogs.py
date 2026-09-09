@@ -31,10 +31,10 @@ class FilterDialog(QDialog):
         self.setWindowTitle(title)
         self.setFixedWidth(440)
         self.setFixedHeight(400)
-        self.layout = QVBoxLayout(self)
+        self._layout = QVBoxLayout(self)
 
         self.label = QLabel("Selecione os itens que deseja OCULTAR:")
-        self.layout.addWidget(self.label)
+        self._layout.addWidget(self.label)
 
         # ==========================================
         # Sessão de Botões de Ação Rápida
@@ -45,7 +45,7 @@ class FilterDialog(QDialog):
         self.btn_none = QPushButton("Desmarcar Todos")
         bulk_layout.addWidget(self.btn_all)
         bulk_layout.addWidget(self.btn_none)
-        self.layout.addLayout(bulk_layout)
+        self._layout.addLayout(bulk_layout)
 
         self.btn_all.clicked.connect(lambda: self.set_all_checks(Qt.CheckState.Checked))
         self.btn_none.clicked.connect(
@@ -72,7 +72,7 @@ class FilterDialog(QDialog):
             )
             self.list_widget.addItem(item)
 
-        self.layout.addWidget(self.list_widget)
+        self._layout.addWidget(self.list_widget)
 
         # ==========================================
         # Sessão de Confirmação (OK/Cancel)
@@ -83,7 +83,7 @@ class FilterDialog(QDialog):
         )
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
-        self.layout.addWidget(self.buttons)
+        self._layout.addWidget(self.buttons)
 
     def set_all_checks(self, state):
         """
