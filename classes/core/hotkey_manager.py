@@ -71,5 +71,5 @@ class HotkeyManager:
             )
 
             print("Atalhos globais inicializados com sucesso.")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao configurar atalhos globais: {e}")

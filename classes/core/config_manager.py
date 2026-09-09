@@ -44,7 +44,7 @@ class ConfigManager:
             new_data = load_all_configs()
             self.configs.clear()
             self.configs.update(new_data)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao recarregar configs: {e}")
         return self.configs
 
@@ -135,5 +135,5 @@ class ConfigManager:
         try:
             save_all_configs(self.configs)
             print("Configurações salvas no disco com sucesso.")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao salvar configurações: {e}")

@@ -88,7 +88,7 @@ class AudioAnalyzer(QObject):
                 callback=audio_callback,
             )
             self.stream.start()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao iniciar AudioAnalyzer: {e}")
 
     def stop(self):
@@ -99,6 +99,6 @@ class AudioAnalyzer(QObject):
             try:
                 self.stream.stop()
                 self.stream.close()
-            except Exception:
+            except Exception:  # noqa: BLE001, S110
                 pass
             self.stream = None

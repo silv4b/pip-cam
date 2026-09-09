@@ -29,7 +29,7 @@ if os.name == "nt":
             os.makedirs(os.path.dirname(BASE_DIR), exist_ok=True)
             shutil.move(LOCAL_BASE_DIR, BASE_DIR)
             print(f"Migrado diretório de configuração: {LOCAL_BASE_DIR} -> {BASE_DIR}")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao migrar diretório local para AppData: {e}")
 else:
     # No Linux/MacOS usamos uma pasta oculta na home
@@ -70,7 +70,7 @@ def _migrate_old_files():
             # Remove a pasta antiga se estiver vazia
             try:
                 os.rmdir(OLD_AVATAR_DIR)
-            except:
+            except OSError:
                 pass
             print(f"Migrados avatares de {OLD_AVATAR_DIR} para {AVATAR_DIR}")
             migrated = True
@@ -88,7 +88,7 @@ def _migrate_old_files():
                 f.write(new_content)
             print("Caminhos internos de avatares atualizados no config.")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Erro na migração: {e}")
 
 
@@ -139,7 +139,7 @@ def load_all_configs():
                 data = json.load(f)
                 # Faz merge com os defaults para garantir que novas chaves existam
                 return {**DEFAULT_CONFIGS, **data}
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao ler JSON: {e}. Usando padrões.")
             return DEFAULT_CONFIGS
 
@@ -160,7 +160,7 @@ def save_all_configs(configs):
         os.makedirs(BASE_DIR, exist_ok=True)
         with open(CONFIG_FILE, "w") as f:
             json.dump(configs, f, indent=4)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Erro ao salvar configurações: {e}")
 
 
@@ -178,7 +178,7 @@ def resource_path(relative_path):
     try:
         # O PyInstaller cria uma pasta temporária e armazena o caminho em _MEIPASS
         base_path = sys._MEIPASS  # type: ignore
-    except Exception:
+    except Exception:  # noqa: BLE001
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 

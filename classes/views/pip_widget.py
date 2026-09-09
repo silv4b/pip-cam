@@ -271,7 +271,7 @@ class PipCameraWidget(QWidget):
                 print(
                     f"Câmera alterada: {new_cam_name} | Zoom: {self.zoom}% | Pan X: {self.pan_x}% | Pan Y: {self.pan_y}%"
                 )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao trocar câmera: {e}")
 
     def toggle_format(self):
@@ -550,7 +550,7 @@ class PipCameraWidget(QWidget):
                     mgr.toggle_border_visibility_signal.disconnect(
                         self.toggle_border_visibility
                     )
-                except:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
             self.store_current_state()
@@ -564,6 +564,6 @@ class PipCameraWidget(QWidget):
             if not self.config_manager.get("multi_cam_mode", False):
                 self.launcher.refresh_launcher_ui()
                 self.launcher.show()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao fechar widget: {e}")
             self.close()

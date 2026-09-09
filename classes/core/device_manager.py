@@ -28,7 +28,7 @@ class DeviceManager:
             try:
                 from pygrabber.dshow_graph import FilterGraph
                 return FilterGraph().get_input_devices()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 print(f"Erro ao listar câmeras no Windows: {e}")
                 return []
         else:
@@ -69,14 +69,14 @@ class DeviceManager:
                 if name in devices:
                     return devices.index(name)
                 return -1
-            except:
+            except Exception:  # noqa: BLE001
                 return -1
         else:
             # Para Linux, extrai o índice do nome genérico (ex: "Camera 0" -> 0)
             if name.startswith("Camera "):
                 try:
                     return int(name.split()[-1])
-                except:
+                except (ValueError, IndexError):
                     pass
             return -1
 
@@ -155,7 +155,7 @@ class DeviceManager:
                         seen.add(name)
                         all_mics.append(name)
             return all_mics
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"Erro ao listar microfones: {e}")
             return []
 
@@ -176,5 +176,5 @@ class DeviceManager:
                 if dev["name"] == name and dev["max_input_channels"] > 0:
                     return i
             return -1
-        except:
+        except Exception:  # noqa: BLE001
             return -1
