@@ -94,7 +94,9 @@ class FilterDialog(QDialog):
             state (Qt.CheckState): O estado a ser aplicado (Checked ou Unchecked).
         """
         for i in range(self.list_widget.count()):
-            self.list_widget.item(i).setCheckState(state)
+            item = self.list_widget.item(i)
+            if item is not None:
+                item.setCheckState(state)
 
     def get_selected_items(self):
         """
@@ -106,6 +108,6 @@ class FilterDialog(QDialog):
         ignored = []
         for i in range(self.list_widget.count()):
             item = self.list_widget.item(i)
-            if item.checkState() == Qt.CheckState.Checked:
+            if item is not None and item.checkState() == Qt.CheckState.Checked:
                 ignored.append(item.text())
         return ignored
