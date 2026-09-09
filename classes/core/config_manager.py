@@ -11,6 +11,8 @@ class ConfigManager:
     """
 
     _instance = None
+    configs: dict
+    _save_timer: QTimer
 
     def __new__(cls):
         """
