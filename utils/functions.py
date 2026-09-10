@@ -113,6 +113,7 @@ DEFAULT_CONFIGS = {
     "avatar_path": "",
     "multi_cam_mode": False,
     "hide_toolbar": False,
+    "minimize_to_tray": True,
     "starts_muted": False,
     "ignored_cameras": [],
     "ignored_mics": [],
