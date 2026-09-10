@@ -926,27 +926,51 @@ class Launcher(QWidget):
 
     def hideEvent(self, event):
         super().hideEvent(event)
+        self._save_launcher_position()
         self.stop_preview()
         self._stop_mic_preview()
 
     def moveEvent(self, event):
-        """Pausa o preview enquanto a janela está sendo movida e salva a posição."""
+        """Pausa o preview e os widgets ativos enquanto a janela é movida."""
         super().moveEvent(event)
         if self.preview_timer.isActive():
             self.preview_timer.stop()
-        # Salva a posição da janela
+        self._pause_pip_timers()
+        # Debounce: retoma o preview 50ms após o último movimento
+        self.resume_timer.start(50)
+
+    def _pause_pip_timers(self):
+        """Pausa o processamento de frames de todos os widgets de câmera ativos."""
+        for pip in self.active_pips:
+            try:
+                if pip.timer.isActive():
+                    pip.timer.stop()
+            except RuntimeError:
+                pass
+
+    def _resume_pip_timers(self):
+        """Retoma o processamento de frames de todos os widgets de câmera ativos."""
+        for pip in self.active_pips:
+            try:
+                if pip.isVisible() and pip.cap:
+                    pip.timer.start(30)
+            except RuntimeError:
+                pass
+
+    def _save_launcher_position(self):
+        """Persiste a posição atual da janela do Launcher no ConfigManager."""
         pos = self.pos()
         self.config_manager.set_global("launcher_x", pos.x())
         self.config_manager.set_global("launcher_y", pos.y())
-        # Debounce: retoma o preview 50ms após o último movimento
-        self.resume_timer.start(50)
 
     # ==========================================
     # Sessão de Renderização do Preview (Câmera Base)
     # ==========================================
 
     def resume_preview(self):
-        """Retoma apenas o timer de tela, sem reconectar o hardware da câmera."""
+        """Retoma o preview, os widgets ativos e salva a posição final da janela."""
+        self._save_launcher_position()
+        self._resume_pip_timers()
         if self.isVisible() and self.preview_cap:
             self.preview_timer.start(30)
 
