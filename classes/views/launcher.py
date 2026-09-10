@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSlider,
+    QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
 )
@@ -23,6 +24,7 @@ from PyQt6.QtWidgets import (
 from classes.core.config_manager import ConfigManager
 from classes.core.device_manager import DeviceManager
 from classes.ui.filter_dialogs import FilterDialog
+from classes.ui.system_tray import SystemTrayIcon
 from classes.views.pip_widget import PipCameraWidget
 from utils.functions import block_signals, resource_path
 
@@ -67,6 +69,13 @@ class Launcher(QWidget):
         self.resume_timer.timeout.connect(self.resume_preview)
 
         self.active_pips = []
+
+        # Ícone da bandeja do sistema (System Tray)
+        self.tray_icon = None
+        if QSystemTrayIcon.isSystemTrayAvailable():
+            self.tray_icon = SystemTrayIcon(resource_path("assets/pipcam_icon.ico"))
+            self.tray_icon.restore_requested.connect(self.restore_from_tray)
+            self.tray_icon.quit_requested.connect(self.quit_application)
 
         # ==========================================
         # Sessão de Construção da Interface (UI)
@@ -340,6 +349,14 @@ class Launcher(QWidget):
         )
         self.form.addRow("", self.check_hide_toolbar)
 
+        self.check_minimize_to_tray = QCheckBox(
+            "Minimizar para a bandeja (System Tray)"
+        )
+        self.check_minimize_to_tray.stateChanged.connect(
+            self.save_current_launcher_settings
+        )
+        self.form.addRow("", self.check_minimize_to_tray)
+
         # ==========================================
         # Sessão de Preview e Ações Finais
         # ==========================================
@@ -430,6 +447,8 @@ class Launcher(QWidget):
             self.check_mic_muted,
             self.btn_preview_avatar,
             self.check_multi_cam,
+            self.check_hide_toolbar,
+            self.check_minimize_to_tray,
             self.avatar_zoom_slider,
             self.avatar_pan_slider,
             self.avatar_pan_x_slider,
@@ -476,6 +495,9 @@ class Launcher(QWidget):
             )
             self.check_hide_toolbar.setChecked(
                 self.all_configs.get("hide_toolbar", False)
+            )
+            self.check_minimize_to_tray.setChecked(
+                self.all_configs.get("minimize_to_tray", True)
             )
 
             audio_sensitivity = self.all_configs.get("audio_sensitivity", 2.0)
@@ -668,9 +690,41 @@ class Launcher(QWidget):
         )
 
     def closeEvent(self, event):
-        """Limpa recursos ao fechar o Launcher."""
+        """Minimiza para a bandeja se houver widgets ativos, caso contrário fecha."""
         self._stop_mic_preview()
-        super().closeEvent(event)
+        minimize_to_tray = (
+            self.check_minimize_to_tray.isChecked() if self.tray_icon is not None else False
+        )
+        if minimize_to_tray and self.active_pips:
+            # Mantém o app rodando na bandeja enquanto há câmeras ativas
+            event.ignore()
+            self.hide()
+            self.tray_icon.show()
+        else:
+            if self.tray_icon is not None:
+                self.tray_icon.hide()
+            super().closeEvent(event)
+
+    def restore_from_tray(self):
+        """Restaura a janela do Launcher a partir da bandeja do sistema."""
+        if self.tray_icon is not None:
+            self.tray_icon.hide()
+        self.show()
+        self.activateWindow()
+        self.raise_()
+
+    def quit_application(self):
+        """Encerra o aplicativo por completo, fechando todos os widgets ativos."""
+        for pip in list(self.active_pips):
+            try:
+                pip.close()
+            except Exception:  # noqa: BLE001, S110
+                pass
+        self.active_pips = []
+        self._stop_mic_preview()
+        if self.tray_icon is not None:
+            self.tray_icon.hide()
+        QGuiApplication.quit()
 
     def toggle_border_config(self, mode_text):
         """Altera dinamicamente os inputs que ficam visíveis com base no modo da borda."""
@@ -787,6 +841,9 @@ class Launcher(QWidget):
             "hide_toolbar", self.check_hide_toolbar.isChecked()
         )
         self.config_manager.set_global(
+            "minimize_to_tray", self.check_minimize_to_tray.isChecked()
+        )
+        self.config_manager.set_global(
             "audio_sensitivity", self.audio_sensitivity_slider.value()
         )
 
@@ -857,6 +914,8 @@ class Launcher(QWidget):
 
     def showEvent(self, event):
         super().showEvent(event)
+        if self.tray_icon is not None:
+            self.tray_icon.hide()
         # Restaura a posição salva da janela
         x = self.all_configs.get("launcher_x")
         y = self.all_configs.get("launcher_y")
@@ -867,27 +926,51 @@ class Launcher(QWidget):
 
     def hideEvent(self, event):
         super().hideEvent(event)
+        self._save_launcher_position()
         self.stop_preview()
         self._stop_mic_preview()
 
     def moveEvent(self, event):
-        """Pausa o preview enquanto a janela está sendo movida e salva a posição."""
+        """Pausa o preview e os widgets ativos enquanto a janela é movida."""
         super().moveEvent(event)
         if self.preview_timer.isActive():
             self.preview_timer.stop()
-        # Salva a posição da janela
+        self._pause_pip_timers()
+        # Debounce: retoma o preview 50ms após o último movimento
+        self.resume_timer.start(50)
+
+    def _pause_pip_timers(self):
+        """Pausa o processamento de frames de todos os widgets de câmera ativos."""
+        for pip in self.active_pips:
+            try:
+                if pip.timer.isActive():
+                    pip.timer.stop()
+            except RuntimeError:
+                pass
+
+    def _resume_pip_timers(self):
+        """Retoma o processamento de frames de todos os widgets de câmera ativos."""
+        for pip in self.active_pips:
+            try:
+                if pip.isVisible() and pip.cap:
+                    pip.timer.start(30)
+            except RuntimeError:
+                pass
+
+    def _save_launcher_position(self):
+        """Persiste a posição atual da janela do Launcher no ConfigManager."""
         pos = self.pos()
         self.config_manager.set_global("launcher_x", pos.x())
         self.config_manager.set_global("launcher_y", pos.y())
-        # Debounce: retoma o preview 50ms após o último movimento
-        self.resume_timer.start(50)
 
     # ==========================================
     # Sessão de Renderização do Preview (Câmera Base)
     # ==========================================
 
     def resume_preview(self):
-        """Retoma apenas o timer de tela, sem reconectar o hardware da câmera."""
+        """Retoma o preview, os widgets ativos e salva a posição final da janela."""
+        self._save_launcher_position()
+        self._resume_pip_timers()
         if self.isVisible() and self.preview_cap:
             self.preview_timer.start(30)
 
@@ -1168,6 +1251,11 @@ class Launcher(QWidget):
 
         if not is_multi:
             self.hide()
+            if (
+                self.tray_icon is not None
+                and self.check_minimize_to_tray.isChecked()
+            ):
+                self.tray_icon.show()
 
     # ==========================================
     # Sessão de Restauração (Factory Reset)
